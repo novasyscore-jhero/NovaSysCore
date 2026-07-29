@@ -2,8 +2,8 @@
 
 require_once "../vendor/autoload.php";
 
-use NovaSysCore\Application;
+use NovaSysCore\Kernel;
 
-$app = new Application();
+$kernel = new Kernel();
 
-echo $app->start();
+$kernel->run();

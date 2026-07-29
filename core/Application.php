@@ -33,7 +33,7 @@ class Application
 
         $router->get("/", function(){
 
-            echo "Bienvenido a NovaSysCore 🚀";
+            echo "Sistema: " . Config::get('app.name') . " 🚀";
 
         });
 

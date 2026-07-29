@@ -10,6 +10,13 @@ class Application
     public function __construct()
     {
         $this->container = new Container();
+
+        $this->container->bind(
+            "router",
+            function(){
+                return new Router();
+            }
+        );
     }
 
 
@@ -21,6 +28,24 @@ class Application
 
     public function start(): string
     {
-        return "NovaSysCore iniciado correctamente 🚀";
+        $router = $this->container->make("router");
+
+
+        $router->get("/", function(){
+
+            echo "Bienvenido a NovaSysCore 🚀";
+
+        });
+
+
+        ob_start();
+
+        $router->dispatch(
+            "/",
+            "GET"
+        );
+
+
+        return ob_get_clean();
     }
 }

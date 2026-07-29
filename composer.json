@@ -1,0 +1,17 @@
+{
+    "name": "novasyscore/core",
+    "description": "Sistema ERP modular y escalable NovaSysCore",
+    "type": "project",
+    "license": "propietary",
+    "autoload": {
+        "psr-4": {
+            "NovaSysCore\\": "core/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Jaime Hernandez"
+        }
+    ],
+    "require": {}
+}

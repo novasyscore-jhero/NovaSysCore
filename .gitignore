@@ -1,0 +1,33 @@
+# Entorno
+.env
+.env.*
+
+# Dependencias
+/vendor/
+/node_modules/
+
+# Archivos generados
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Composer
+composer.lock
+
+# npm
+package-lock.json
+yarn.lock
+
+# Archivos temporales
+*.tmp
+*.log

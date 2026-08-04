@@ -33,7 +33,7 @@ class Application
 
         $router->get("/", function(){
 
-            echo "Sistema: " . Config::get('app.name') . " 🚀";
+            echo "Sistema: " . Config::get("app.name") . " 🚀";
 
         });
 

@@ -15,6 +15,8 @@ class Kernel
 
         $this->loadConfiguration();
 
+        ErrorHandler::register();
+
         $this->application = new Application();
     }
 

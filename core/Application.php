@@ -2,6 +2,7 @@
 
 namespace NovaSysCore;
 use Exception;
+use App\Models\User;
 
 class Application
 {
@@ -39,10 +40,55 @@ class Application
         $router = $this->container->make("router");
 
 
-        $router->get("/", function(){
+        /* $router->get("/", function(){
 
             echo "Sistema: " . Config::get('app.name') . " 🚀";
 
+        }); */
+
+        /* $router->get('/', function () {
+
+            $user = new User();
+        
+            $id = $user->create([
+                'company_id' => 1,
+                'name' => 'Administrador',
+                'email' => 'admin@novasyscore.com',
+                'password' => password_hash('123456', PASSWORD_DEFAULT)
+            ]);
+        
+            echo "Usuario creado con ID: {$id} 🚀";
+        
+        }); */
+
+        /* $router->get("/", function(){
+
+            $migrator = new \NovaSysCore\Database\Migrator();
+        
+            $migrator->ensureMigrationsTable();
+        
+            echo "Sistema de migraciones funcionando 🚀";
+        
+        }); */
+
+        /* $router->get("/", function(){
+
+            $migrator = new \NovaSysCore\Database\Migrator();
+        
+            $migrator->run();
+        
+            echo "Migraciones ejecutadas 🚀";
+        
+        }); */
+
+        $router->get("/", function(){
+
+            $migrator = new \NovaSysCore\Database\Migrator();
+        
+            $migrator->rollback();
+        
+            echo "Rollback ejecutado 🚀";
+        
         });
 
 

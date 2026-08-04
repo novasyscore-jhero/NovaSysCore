@@ -1,6 +1,7 @@
 <?php
 
 namespace NovaSysCore;
+use Exception;
 
 class Application
 {
@@ -13,8 +14,15 @@ class Application
 
         $this->container->bind(
             "router",
-            function(){
+            function () {
                 return new Router();
+            }
+        );
+
+        $this->container->bind(
+            "audit",
+            function () {
+                return new AuditLogger();
             }
         );
     }
@@ -33,7 +41,7 @@ class Application
 
         $router->get("/", function(){
 
-            echo "Sistema: " . Config::get("app.name") . " 🚀";
+            echo "Sistema: " . Config::get('app.name') . " 🚀";
 
         });
 

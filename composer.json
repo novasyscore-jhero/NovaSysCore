@@ -5,7 +5,8 @@
     "license": "propietary",
     "autoload": {
         "psr-4": {
-            "NovaSysCore\\": "core/"
+            "NovaSysCore\\": "core/",
+            "App\\": "app/"
         }
     },
     "authors": [

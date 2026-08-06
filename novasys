@@ -1,31 +1,17 @@
 #!/usr/bin/env php
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+
+require __DIR__ . '/bootstrap/app.php';
 
 
-use Dotenv\Dotenv;
-use NovaSysCore\Config;
 use NovaSysCore\Database\Migrator;
 
-
-$dotenv = Dotenv::createImmutable(
-    __DIR__
-);
-
-$dotenv->load();
-
-
-Config::load(
-    'database',
-    __DIR__ . '/config/database.php'
-);
 
 $command = $argv[1] ?? null;
 
 
 switch ($command) {
-
 
     case 'migrate':
 
@@ -36,7 +22,6 @@ switch ($command) {
         echo "Migraciones ejecutadas correctamente 🚀" . PHP_EOL;
 
         break;
-
 
 
     case 'rollback':
@@ -50,17 +35,8 @@ switch ($command) {
         break;
 
 
-
     default:
 
         echo "NovaSysCore Console" . PHP_EOL;
-
-        echo "Comandos disponibles:" . PHP_EOL;
-
-        echo "  migrate" . PHP_EOL;
-
-        echo "  rollback" . PHP_EOL;
-
-        break;
 
 }

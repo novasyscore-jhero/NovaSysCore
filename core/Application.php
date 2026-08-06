@@ -46,50 +46,25 @@ class Application
 
         }); */
 
-        /* $router->get('/', function () {
-
-            $user = new User();
-        
-            $id = $user->create([
-                'company_id' => 1,
-                'name' => 'Administrador',
-                'email' => 'admin@novasyscore.com',
-                'password' => password_hash('123456', PASSWORD_DEFAULT)
-            ]);
-        
-            echo "Usuario creado con ID: {$id} 🚀";
-        
-        }); */
-
-        /* $router->get("/", function(){
-
-            $migrator = new \NovaSysCore\Database\Migrator();
-        
-            $migrator->ensureMigrationsTable();
-        
-            echo "Sistema de migraciones funcionando 🚀";
-        
-        }); */
-
-        /* $router->get("/", function(){
+        $router->get('/', function(){
 
             $migrator = new \NovaSysCore\Database\Migrator();
         
             $migrator->run();
         
-            echo "Migraciones ejecutadas 🚀";
-        
-        }); */
-
-        $router->get("/", function(){
-
-            $migrator = new \NovaSysCore\Database\Migrator();
-        
-            $migrator->rollback();
-        
-            echo "Rollback ejecutado 🚀";
+            echo "<br>Migraciones ejecutadas correctamente 🚀";
         
         });
+
+        /* $router->get('/', function(){
+
+            $migrator = new \NovaSysCore\Database\Migrator();
+
+            $migrator->rollback();
+
+            echo "<br>Rollback ejecutado correctamente 🚀";
+
+        }); */
 
 
         ob_start();

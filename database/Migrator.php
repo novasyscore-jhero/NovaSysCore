@@ -54,42 +54,62 @@ class Migrator
     {
         $this->ensureMigrationsTable();
 
-
         $executed = $this->getExecutedMigrations();
-
 
         $files = glob(
             dirname(__DIR__) . '/database/migrations/*.php'
         );
 
+        sort($files);
 
         foreach ($files as $file) {
 
             $migrationName = basename($file);
 
-
             if (in_array($migrationName, $executed)) {
                 continue;
             }
 
-
             $migration = require $file;
-
 
             if (!$migration instanceof Migration) {
 
                 throw new \Exception(
                     "La migración {$migrationName} no es válida"
                 );
+
             }
 
+            try {
 
-            $migration->up();
+                $migration->up();
+            
+                $this->markAsExecuted(
+                    $migrationName
+                );
+            
+                echo "[OK] {$migrationName}\n";
+            
+            } catch (\Throwable $e) {
+            
+                throw new \Exception(
+                    "Error ejecutando {$migrationName}: "
+                    . $e->getMessage()
+                );
+            
+            } catch (\Throwable $e) {
 
+                if ($this->database->inTransaction()) {
+                    $this->database->rollBack();
+                }
+            
+                throw new \Exception(
+                    "Error ejecutando {$migrationName}: "
+                    . $e->getMessage()
+                );
+            
+            }
 
-            $this->markAsExecuted(
-                $migrationName
-            );
         }
     }
 
@@ -123,42 +143,61 @@ class Migrator
     {
         $migrationName = $this->getLastMigration();
 
-
         if (!$migrationName) {
-            echo "No hay migraciones para revertir.";
+            echo "No hay migraciones para revertir.\n";
             return;
         }
-
 
         $file = dirname(__DIR__)
             . '/database/migrations/'
             . $migrationName;
-
 
         if (!file_exists($file)) {
 
             throw new \Exception(
                 "No existe el archivo de migración: {$migrationName}"
             );
+
         }
 
-
         $migration = require $file;
-
 
         if (!$migration instanceof Migration) {
 
             throw new \Exception(
                 "Migración inválida: {$migrationName}"
             );
+
         }
 
+        try {
 
-        $migration->down();
+            $migration->down();
+        
+            $this->removeMigration(
+                $migrationName
+            );
+        
+            echo "[ROLLBACK] {$migrationName}\n";
+        
+        } catch (\Throwable $e) {
+        
+            throw new \Exception(
+                "Error revirtiendo {$migrationName}: "
+                . $e->getMessage()
+            );
+        
+        } catch (\Throwable $e) {
 
+            if ($this->database->inTransaction()) {
+                $this->database->rollBack();
+            }
 
-        $this->removeMigration(
-            $migrationName
-        );
+            throw new \Exception(
+                "Error revirtiendo {$migrationName}: "
+                . $e->getMessage()
+            );
+
+        }
     }
 }

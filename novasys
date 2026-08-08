@@ -1,42 +1,12 @@
 #!/usr/bin/env php
 <?php
 
-
 require __DIR__ . '/bootstrap/app.php';
 
+use NovaSysCore\Console\Kernel;
 
-use NovaSysCore\Database\Migrator;
+$kernel = new Kernel();
 
-
-$command = $argv[1] ?? null;
-
-
-switch ($command) {
-
-    case 'migrate':
-
-        $migrator = new Migrator();
-
-        $migrator->run();
-
-        echo "Migraciones ejecutadas correctamente 🚀" . PHP_EOL;
-
-        break;
-
-
-    case 'rollback':
-
-        $migrator = new Migrator();
-
-        $migrator->rollback();
-
-        echo "Rollback ejecutado correctamente 🚀" . PHP_EOL;
-
-        break;
-
-
-    default:
-
-        echo "NovaSysCore Console" . PHP_EOL;
-
-}
+exit(
+    $kernel->handle($argv)
+);

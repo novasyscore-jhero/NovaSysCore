@@ -82,32 +82,30 @@ class Migrator
 
             try {
 
+                $this->database->beginTransaction();
+            
                 $migration->up();
             
                 $this->markAsExecuted(
                     $migrationName
                 );
             
+                $this->database->commit();
+            
                 echo "[OK] {$migrationName}\n";
             
             } catch (\Throwable $e) {
             
-                throw new \Exception(
-                    "Error ejecutando {$migrationName}: "
-                    . $e->getMessage()
-                );
-            
-            } catch (\Throwable $e) {
-
                 if ($this->database->inTransaction()) {
                     $this->database->rollBack();
                 }
             
                 throw new \Exception(
                     "Error ejecutando {$migrationName}: "
-                    . $e->getMessage()
+                    . $e->getMessage(),
+                    0,
+                    $e
                 );
-            
             }
 
         }
@@ -172,32 +170,30 @@ class Migrator
 
         try {
 
+            $this->database->beginTransaction();
+        
             $migration->down();
         
             $this->removeMigration(
                 $migrationName
             );
         
+            $this->database->commit();
+        
             echo "[ROLLBACK] {$migrationName}\n";
         
         } catch (\Throwable $e) {
         
-            throw new \Exception(
-                "Error revirtiendo {$migrationName}: "
-                . $e->getMessage()
-            );
-        
-        } catch (\Throwable $e) {
-
             if ($this->database->inTransaction()) {
                 $this->database->rollBack();
             }
-
+        
             throw new \Exception(
                 "Error revirtiendo {$migrationName}: "
-                . $e->getMessage()
+                . $e->getMessage(),
+                0,
+                $e
             );
-
         }
     }
 }

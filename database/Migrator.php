@@ -5,6 +5,7 @@ namespace NovaSysCore\Database;
 use PDO;
 use NovaSysCore\Database;
 use NovaSysCore\Database\Migration;
+use NovaSysCore\Exceptions\MigrationException;
 
 class Migrator
 {
@@ -100,7 +101,7 @@ class Migrator
                     $this->database->rollBack();
                 }
             
-                throw new \Exception(
+                throw new MigrationException(
                     "Error ejecutando {$migrationName}: "
                     . $e->getMessage(),
                     0,
@@ -188,7 +189,7 @@ class Migrator
                 $this->database->rollBack();
             }
         
-            throw new \Exception(
+            throw new MigrationException(
                 "Error revirtiendo {$migrationName}: "
                 . $e->getMessage(),
                 0,

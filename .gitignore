@@ -22,7 +22,6 @@
 Thumbs.db
 
 # Composer
-composer.lock
 
 # npm
 package-lock.json

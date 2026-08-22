@@ -1,0 +1,14 @@
+{
+    "name": "novasyscore/novasyscore",
+    "description": "NovaSysCore - Modular Business Management System",
+    "type": "project",
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "NovaSysCore\\": "app/",
+            "NovaSysCore\\Modules\\": "modules/"
+        }
+    }
+}

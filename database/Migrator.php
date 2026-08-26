@@ -83,23 +83,15 @@ class Migrator
 
             try {
 
-                $this->database->beginTransaction();
-            
                 $migration->up();
             
                 $this->markAsExecuted(
                     $migrationName
                 );
             
-                $this->database->commit();
-            
                 echo "[OK] {$migrationName}\n";
             
             } catch (\Throwable $e) {
-            
-                if ($this->database->inTransaction()) {
-                    $this->database->rollBack();
-                }
             
                 throw new MigrationException(
                     "Error ejecutando {$migrationName}: "
@@ -171,23 +163,15 @@ class Migrator
 
         try {
 
-            $this->database->beginTransaction();
-        
             $migration->down();
         
             $this->removeMigration(
                 $migrationName
             );
         
-            $this->database->commit();
-        
             echo "[ROLLBACK] {$migrationName}\n";
         
         } catch (\Throwable $e) {
-        
-            if ($this->database->inTransaction()) {
-                $this->database->rollBack();
-            }
         
             throw new MigrationException(
                 "Error revirtiendo {$migrationName}: "

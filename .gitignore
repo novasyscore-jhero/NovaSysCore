@@ -1,6 +1,7 @@
 # Entorno
 .env
 .env.*
+!.env.example
 
 # Dependencias
 /vendor/
@@ -21,8 +22,6 @@
 .DS_Store
 Thumbs.db
 
-# Composer
-composer.lock
 
 # npm
 package-lock.json

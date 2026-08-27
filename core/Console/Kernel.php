@@ -6,6 +6,8 @@ use NovaSysCore\Console\Commands\MigrateCommand;
 use NovaSysCore\Console\Commands\RollbackCommand;
 use NovaSysCore\Console\Commands\StatusCommand;
 use NovaSysCore\Console\Commands\MakeMigrationCommand;
+use NovaSysCore\Console\Commands\DbSeedCommand;
+use NovaSysCore\Console\Commands\GeographyImportCommand;
 
 class Kernel
 {
@@ -17,6 +19,8 @@ class Kernel
         $this->register(new RollbackCommand());
         $this->register(new StatusCommand());
         $this->register(new MakeMigrationCommand());
+        $this->register(new DbSeedCommand());
+        $this->register(new GeographyImportCommand());
     }
 
     public function register(Command $command): void

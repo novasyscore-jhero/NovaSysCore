@@ -13,4 +13,18 @@ return [
 
     'url' => $_ENV['APP_URL'] ?? null,
 
+    /*
+     * Ruta base desde la que se publica NovaSysCore.
+     *
+     * Desarrollo XAMPP:
+     * /NovaSysCore/public
+     *
+     * Producción con DocumentRoot apuntando a /public:
+     * vacío
+     */
+    'base_path' => rtrim(
+        $_ENV['APP_BASE_PATH'] ?? '',
+        '/'
+    ),
+
 ];

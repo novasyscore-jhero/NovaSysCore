@@ -38,10 +38,14 @@ class Kernel
             dirname(__DIR__) . '/config/app.php'
         );
 
-
         Config::load(
             'database',
             dirname(__DIR__) . '/config/database.php'
+        );
+
+        Config::load(
+            'security',
+            dirname(__DIR__) . '/config/security.php'
         );
     }
 

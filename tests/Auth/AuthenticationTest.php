@@ -35,6 +35,32 @@ $session->start();
  */
 ob_clean();
 
+/*
+ * Conservamos la IP original del entorno para restaurarla
+ * al terminar las pruebas.
+ */
+$originalRemoteAddress = $_SERVER['REMOTE_ADDR']
+    ?? null;
+
+/*
+ * IPs reservadas exclusivamente para este laboratorio.
+ */
+$normalTestIp = '127.0.20.1';
+$pairRateLimitIp = '127.0.20.2';
+$globalRateLimitIp = '127.0.20.3';
+
+$testIps = [
+    $normalTestIp,
+    $pairRateLimitIp,
+    $globalRateLimitIp,
+];
+
+/*
+ * =========================================================
+ * FUNCIONES AUXILIARES
+ * =========================================================
+ */
+
 function authTestUserId(
     \PDO $pdo,
     string $email
@@ -61,6 +87,38 @@ function authTestUserId(
     return (int) $id;
 }
 
+function cleanAuthenticationAttempts(
+    \PDO $pdo,
+    array $ips
+): void {
+    $placeholders = implode(
+        ',',
+        array_fill(
+            0,
+            count($ips),
+            '?'
+        )
+    );
+
+    $statement = $pdo->prepare("
+        DELETE FROM login_attempts
+        WHERE ip_address IN ({$placeholders})
+    ");
+
+    $statement->execute($ips);
+}
+
+/*
+ * =========================================================
+ * PREPARAR LABORATORIO
+ * =========================================================
+ */
+
+cleanAuthenticationAttempts(
+    $pdo,
+    $testIps
+);
+
 $email = 'authorization.test@novasyscore.local';
 $password = 'Test1234!';
 
@@ -83,6 +141,13 @@ $statement = $pdo->prepare("
 $statement->execute([
     'user_id' => $userId,
 ]);
+
+/*
+ * Las primeras pruebas utilizan una IP propia para que
+ * los fallos normales no interfieran con las pruebas
+ * específicas del rate limiter.
+ */
+$_SERVER['REMOTE_ADDR'] = $normalTestIp;
 
 $auth = new AuthenticationService($session);
 
@@ -142,8 +207,6 @@ $tests[] = [
 /*
  * =========================================================
  * 4. NORMALIZACIÓN DE EMAIL
- *
- * Debe aceptar espacios y mayúsculas.
  * =========================================================
  */
 
@@ -208,7 +271,10 @@ $tests[] = [
     'name' => 'Auth::user no expone password_hash',
     'expected' => false,
     'result' => is_array($user)
-        && array_key_exists('password_hash', $user),
+        && array_key_exists(
+            'password_hash',
+            $user
+        ),
 ];
 
 /*
@@ -240,7 +306,33 @@ $tests[] = [
 
 /*
  * =========================================================
- * 8. LOGOUT
+ * 8. LOGIN EXITOSO REGISTRADO
+ * =========================================================
+ */
+
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE user_id = :user_id
+      AND ip_address = :ip_address
+      AND was_successful = 1
+      AND was_blocked = 0
+");
+
+$statement->execute([
+    'user_id' => $userId,
+    'ip_address' => $normalTestIp,
+]);
+
+$tests[] = [
+    'name' => 'Login exitoso queda registrado',
+    'expected' => true,
+    'result' => (int) $statement->fetchColumn() >= 1,
+];
+
+/*
+ * =========================================================
+ * 9. LOGOUT
  * =========================================================
  */
 
@@ -260,7 +352,7 @@ $tests[] = [
 
 /*
  * =========================================================
- * 9. USUARIO INACTIVO NO PUEDE INICIAR SESIÓN
+ * 10. USUARIO INACTIVO
  * =========================================================
  */
 
@@ -287,11 +379,7 @@ $tests[] = [
 
 /*
  * =========================================================
- * 10. SESIÓN EXISTENTE + USUARIO DESACTIVADO
- *
- * Primero reactivamos y autenticamos.
- * Después desactivamos la cuenta directamente en BD.
- * Auth::user() debe detectar el cambio y cerrar la sesión.
+ * 11. SESIÓN EXISTENTE + USUARIO DESACTIVADO
  * =========================================================
  */
 
@@ -341,6 +429,190 @@ $tests[] = [
 ];
 
 /*
+ * Reactivamos para las pruebas de rate limiting.
+ */
+$statement = $pdo->prepare("
+    UPDATE users
+    SET status = 'active'
+    WHERE id = :user_id
+");
+
+$statement->execute([
+    'user_id' => $userId,
+]);
+
+/*
+ * =========================================================
+ * 12. RATE LIMIT IP + IDENTIFICADOR
+ * =========================================================
+ *
+ * Cinco fallos reales deben alcanzar el límite.
+ * El sexto intento, incluso con password correcto,
+ * debe ser rechazado antes de autenticar.
+ * =========================================================
+ */
+
+$_SERVER['REMOTE_ADDR'] = $pairRateLimitIp;
+
+for ($i = 0; $i < 5; $i++) {
+    $auth->attempt(
+        $email,
+        'PasswordIncorrecto!'
+    );
+}
+
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE user_id = :user_id
+      AND ip_address = :ip_address
+      AND was_successful = 0
+      AND was_blocked = 0
+");
+
+$statement->execute([
+    'user_id' => $userId,
+    'ip_address' => $pairRateLimitIp,
+]);
+
+$tests[] = [
+    'name' => 'Cinco fallos reales quedan registrados',
+    'expected' => 5,
+    'result' => (int) $statement->fetchColumn(),
+];
+
+$blockedCorrectPassword = $auth->attempt(
+    $email,
+    $password
+);
+
+$tests[] = [
+    'name' => 'Rate limit bloquea incluso password correcto',
+    'expected' => false,
+    'result' => $blockedCorrectPassword,
+];
+
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE ip_address = :ip_address
+      AND was_blocked = 1
+      AND failure_reason = 'rate_limited'
+");
+
+$statement->execute([
+    'ip_address' => $pairRateLimitIp,
+]);
+
+$tests[] = [
+    'name' => 'Intento bloqueado queda registrado',
+    'expected' => 1,
+    'result' => (int) $statement->fetchColumn(),
+];
+
+/*
+ * El intento bloqueado no debe convertirse en un sexto
+ * fallo de contraseña.
+ */
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE user_id = :user_id
+      AND ip_address = :ip_address
+      AND was_successful = 0
+      AND was_blocked = 0
+");
+
+$statement->execute([
+    'user_id' => $userId,
+    'ip_address' => $pairRateLimitIp,
+]);
+
+$tests[] = [
+    'name' => 'Bloqueo no incrementa fallos de password',
+    'expected' => 5,
+    'result' => (int) $statement->fetchColumn(),
+];
+
+/*
+ * =========================================================
+ * 13. RATE LIMIT GLOBAL POR IP
+ * =========================================================
+ *
+ * Veinte correos diferentes desde la misma IP deben
+ * bloquear nuevos intentos desde esa IP.
+ * =========================================================
+ */
+
+$_SERVER['REMOTE_ADDR'] = $globalRateLimitIp;
+
+for ($i = 1; $i <= 20; $i++) {
+    $auth->attempt(
+        "attack{$i}@novasyscore.local",
+        'PasswordIncorrecto!'
+    );
+}
+
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE ip_address = :ip_address
+      AND was_successful = 0
+      AND was_blocked = 0
+");
+
+$statement->execute([
+    'ip_address' => $globalRateLimitIp,
+]);
+
+$tests[] = [
+    'name' => 'Veinte fallos globales por IP registrados',
+    'expected' => 20,
+    'result' => (int) $statement->fetchColumn(),
+];
+
+$globalIpBlocked = $auth->attempt(
+    'cuenta.nueva@novasyscore.local',
+    'PasswordIncorrecto!'
+);
+
+$tests[] = [
+    'name' => 'IP atacante queda limitada globalmente',
+    'expected' => false,
+    'result' => $globalIpBlocked,
+];
+
+$statement = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM login_attempts
+    WHERE ip_address = :ip_address
+      AND was_blocked = 1
+      AND failure_reason = 'rate_limited'
+");
+
+$statement->execute([
+    'ip_address' => $globalRateLimitIp,
+]);
+
+$tests[] = [
+    'name' => 'Bloqueo global por IP queda registrado',
+    'expected' => 1,
+    'result' => (int) $statement->fetchColumn(),
+];
+
+/*
+ * =========================================================
+ * 14. EL RATE LIMIT NO CREA SESIÓN
+ * =========================================================
+ */
+
+$tests[] = [
+    'name' => 'Intento rate-limited no crea sesion',
+    'expected' => false,
+    'result' => Auth::check(),
+];
+
+/*
  * =========================================================
  * RESTAURAR LABORATORIO
  * =========================================================
@@ -356,6 +628,21 @@ $statement->execute([
     'user_id' => $userId,
 ]);
 
+cleanAuthenticationAttempts(
+    $pdo,
+    $testIps
+);
+
+/*
+ * Restauramos REMOTE_ADDR.
+ */
+if ($originalRemoteAddress === null) {
+    unset($_SERVER['REMOTE_ADDR']);
+} else {
+    $_SERVER['REMOTE_ADDR']
+        = $originalRemoteAddress;
+}
+
 /*
  * =========================================================
  * RESULTADOS
@@ -370,7 +657,9 @@ $passed = 0;
 $failed = 0;
 
 foreach ($tests as $test) {
-    $success = $test['expected'] === $test['result'];
+    $success =
+        $test['expected']
+        === $test['result'];
 
     if ($success) {
         $passed++;
@@ -382,22 +671,28 @@ foreach ($tests as $test) {
         "[%s] %-48s esperado=%s obtenido=%s",
         $success ? 'OK' : 'FAIL',
         $test['name'],
-        var_export($test['expected'], true),
-        var_export($test['result'], true)
+        var_export(
+            $test['expected'],
+            true
+        ),
+        var_export(
+            $test['result'],
+            true
+        )
     );
 
     echo PHP_EOL;
 }
 
-echo str_repeat('-', 78) . PHP_EOL;
+echo str_repeat('=', 78) . PHP_EOL;
 echo "Correctas: {$passed}" . PHP_EOL;
 echo "Fallidas:  {$failed}" . PHP_EOL;
 echo PHP_EOL;
 
-/*
- * Enviamos todo el buffer únicamente cuando ya terminamos
- * de manipular sesiones.
- */
 ob_end_flush();
 
-exit($failed === 0 ? 0 : 1);
+exit(
+    $failed === 0
+        ? 0
+        : 1
+);

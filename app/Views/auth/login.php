@@ -1,8 +1,13 @@
 <?php
 
 use NovaSysCore\Url;
+use NovaSysCore\Security\CsrfTokenManager;
 
 $errorMessage = null;
+
+$csrf = new CsrfTokenManager();
+
+$csrfToken = $csrf->token();
 
 if (
     isset($error)
@@ -260,15 +265,25 @@ if (
 
         <?php endif; ?>
 
-        <form
-            method="POST"
-            action="<?= htmlspecialchars(
-                Url::to('/login'),
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>"
-            autocomplete="on"
-        >
+            <form
+                method="POST"
+                action="<?= htmlspecialchars(
+                    Url::to('/login'),
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+                autocomplete="on"
+            >
+
+            <input
+                type="hidden"
+                name="_token"
+                value="<?= htmlspecialchars(
+                    $csrfToken,
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+            >
 
             <div class="form-group">
 

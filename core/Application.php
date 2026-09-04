@@ -5,6 +5,7 @@ namespace NovaSysCore;
 use App\Http\Controllers\Auth\LoginController;
 use NovaSysCore\Auth\Auth;
 use NovaSysCore\Url;
+use NovaSysCore\Security\CsrfTokenManager;
 
 class Application
 {
@@ -99,6 +100,10 @@ class Application
 
         $router->get('/dashboard', function (): void {
 
+        $csrf = new CsrfTokenManager();
+
+        $csrfToken = $csrf->token();
+
             if (!Auth::check()) {
                 header('Location: /login');
                 exit;
@@ -166,6 +171,18 @@ class Application
                     . '"
                     style="margin-top:30px;"
                 >
+                    <input
+                        type="hidden"
+                        name="_token"
+                        value="'
+                        . htmlspecialchars(
+                            $csrfToken,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        )
+                        . '"
+                    >
+
                     <button type="submit">
                         Cerrar sesión
                     </button>

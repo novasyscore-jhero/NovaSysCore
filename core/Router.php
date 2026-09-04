@@ -1,6 +1,7 @@
 <?php
 
 namespace NovaSysCore;
+use NovaSysCore\Http\Middleware\CsrfMiddleware;
 
 class Router
 {
@@ -28,18 +29,25 @@ class Router
             $uri
         );
 
-        if (isset($this->routes[$method][$uri])) {
+        if (!isset($this->routes[$method][$uri])) {
+            http_response_code(404);
 
-            call_user_func(
-                $this->routes[$method][$uri]
-            );
+            echo 'Ruta no encontrada';
 
             return;
         }
 
-        http_response_code(404);
+        $action = $this->routes[$method][$uri];
 
-        echo 'Ruta no encontrada';
+        $csrfMiddleware = new CsrfMiddleware();
+
+        $csrfMiddleware->handle(
+            function () use ($action): void {
+                call_user_func(
+                    $action
+                );
+            }
+        );
     }
 
     private function normalizeUri(string $uri): string

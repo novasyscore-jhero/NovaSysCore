@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use NovaSysCore\Auth\Auth;
 use NovaSysCore\Url;
 use NovaSysCore\Security\CsrfTokenManager;
+use NovaSysCore\Http\Middleware\AuthMiddleware;
 
 class Application
 {
@@ -98,100 +99,100 @@ class Application
          * completo antes de construir esa capa.
          */
 
-        $router->get('/dashboard', function (): void {
+        $router->get(
+            '/dashboard',
+            function (): void {
 
-        $csrf = new CsrfTokenManager();
+                $user = Auth::user();
 
-        $csrfToken = $csrf->token();
+                if ($user === null) {
+                    return;
+                }
 
-            if (!Auth::check()) {
-                header('Location: /login');
-                exit;
-            }
+                $displayName =
+                    $user['display_name']
+                    ?: trim(
+                        ($user['name'] ?? '')
+                        . ' '
+                        . ($user['last_name'] ?? '')
+                    );
 
-            $user = Auth::user();
+                $csrf = new CsrfTokenManager();
 
-            if ($user === null) {
-                header('Location: /login');
-                exit;
-            }
+                $csrfToken = $csrf->token();
 
-            $displayName =
-                $user['display_name']
-                ?: trim(
-                    ($user['name'] ?? '')
-                    . ' '
-                    . ($user['last_name'] ?? '')
-                );
+                echo '<!DOCTYPE html>';
+                echo '<html lang="es">';
+                echo '<head>';
+                echo '<meta charset="UTF-8">';
+                echo '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+                echo '<title>Dashboard | NovaSysCore</title>';
+                echo '</head>';
 
-            echo '<!DOCTYPE html>';
-            echo '<html lang="es">';
-            echo '<head>';
-            echo '<meta charset="UTF-8">';
-            echo '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
-            echo '<title>Dashboard | NovaSysCore</title>';
-            echo '</head>';
+                echo '<body style="
+                    font-family:system-ui,sans-serif;
+                    padding:40px;
+                    background:#f4f7fb;
+                    color:#111827;
+                ">';
 
-            echo '<body style="
-                font-family:system-ui,sans-serif;
-                padding:40px;
-                background:#f4f7fb;
-                color:#111827;
-            ">';
+                echo '<h1>NovaSysCore</h1>';
 
-            echo '<h1>NovaSysCore</h1>';
+                echo '<p>Sesión iniciada correctamente.</p>';
 
-            echo '<p>Sesión iniciada correctamente.</p>';
-
-            echo '<p>Bienvenido, <strong>'
-                . htmlspecialchars(
-                    $displayName,
-                    ENT_QUOTES,
-                    'UTF-8'
-                )
-                . '</strong></p>';
-
-            echo '<p>'
-                . htmlspecialchars(
-                    $user['email'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                )
-                . '</p>';
-
-            echo '
-                <form
-                    method="POST"
-                    action="'
+                echo '<p>Bienvenido, <strong>'
                     . htmlspecialchars(
-                        Url::to('/logout'),
+                        $displayName,
                         ENT_QUOTES,
                         'UTF-8'
                     )
-                    . '"
-                    style="margin-top:30px;"
-                >
-                    <input
-                        type="hidden"
-                        name="_token"
-                        value="'
+                    . '</strong></p>';
+
+                echo '<p>'
+                    . htmlspecialchars(
+                        $user['email'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    )
+                    . '</p>';
+
+                echo '
+                    <form
+                        method="POST"
+                        action="'
                         . htmlspecialchars(
-                            $csrfToken,
+                            Url::to('/logout'),
                             ENT_QUOTES,
                             'UTF-8'
                         )
                         . '"
+                        style="margin-top:30px;"
                     >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="'
+                            . htmlspecialchars(
+                                $csrfToken,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            )
+                            . '"
+                        >
 
-                    <button type="submit">
-                        Cerrar sesión
-                    </button>
-                </form>
-            ';
+                        <button type="submit">
+                            Cerrar sesión
+                        </button>
+                    </form>
+                ';
 
-            echo '</body>';
-            echo '</html>';
-        });
+                echo '</body>';
+                echo '</html>';
+            },
+            [
+                AuthMiddleware::class,
+            ]
+        );
 
         /*
          * =====================================================

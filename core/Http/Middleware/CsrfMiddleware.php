@@ -4,7 +4,7 @@ namespace NovaSysCore\Http\Middleware;
 
 use NovaSysCore\Security\CsrfTokenManager;
 
-class CsrfMiddleware
+class CsrfMiddleware implements MiddlewareInterface
 {
     private CsrfTokenManager $csrf;
 

@@ -1,24 +1,44 @@
 <?php
 
 namespace NovaSysCore;
+
 use NovaSysCore\Http\Middleware\CsrfMiddleware;
+use NovaSysCore\Http\Middleware\MiddlewarePipeline;
 
 class Router
 {
     protected array $routes = [];
 
-    public function get(string $uri, callable $action): void
-    {
-        $this->routes['GET'][$this->normalizeUri($uri)] = $action;
+    protected array $globalMiddlewares = [
+        CsrfMiddleware::class,
+    ];
+
+    public function get(
+        string $uri,
+        callable $action,
+        array $middlewares = []
+    ): void {
+        $this->routes['GET'][$this->normalizeUri($uri)] = [
+            'action' => $action,
+            'middlewares' => $middlewares,
+        ];
     }
 
-    public function post(string $uri, callable $action): void
-    {
-        $this->routes['POST'][$this->normalizeUri($uri)] = $action;
+    public function post(
+        string $uri,
+        callable $action,
+        array $middlewares = []
+    ): void {
+        $this->routes['POST'][$this->normalizeUri($uri)] = [
+            'action' => $action,
+            'middlewares' => $middlewares,
+        ];
     }
 
-    public function dispatch(string $uri, string $method): void
-    {
+    public function dispatch(
+        string $uri,
+        string $method
+    ): void {
         $method = strtoupper($method);
 
         $uri = $this->removeBasePath(
@@ -37,34 +57,58 @@ class Router
             return;
         }
 
-        $action = $this->routes[$method][$uri];
+        $route = $this->routes[$method][$uri];
 
-        $csrfMiddleware = new CsrfMiddleware();
+        $middlewares = array_merge(
+            $this->globalMiddlewares,
+            $route['middlewares']
+        );
 
-        $csrfMiddleware->handle(
-            function () use ($action): void {
+        $pipeline = new MiddlewarePipeline();
+
+        $pipeline->run(
+            $middlewares,
+            function () use ($route): void {
                 call_user_func(
-                    $action
+                    $route['action']
                 );
             }
         );
     }
 
+    public function middleware(
+        string|object $middleware
+    ): void {
+        $this->globalMiddlewares[] = $middleware;
+    }
+
     private function normalizeUri(string $uri): string
     {
-        $path = parse_url($uri, PHP_URL_PATH);
+        $path = parse_url(
+            $uri,
+            PHP_URL_PATH
+        );
 
-        if (!is_string($path) || $path === '') {
+        if (
+            !is_string($path)
+            || $path === ''
+        ) {
             return '/';
         }
 
-        $path = '/' . trim($path, '/');
+        $path = '/' . trim(
+            $path,
+            '/'
+        );
 
-        return $path === '/' ? '/' : rtrim($path, '/');
+        return $path === '/'
+            ? '/'
+            : rtrim($path, '/');
     }
 
-    private function removeBasePath(string $uri): string
-    {
+    private function removeBasePath(
+        string $uri
+    ): string {
         $basePath = Config::get(
             'app.base_path'
         );

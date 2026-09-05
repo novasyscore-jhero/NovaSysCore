@@ -4,6 +4,7 @@ namespace NovaSysCore\Auth;
 
 use NovaSysCore\Database;
 use NovaSysCore\Security\LoginRateLimiter;
+use NovaSysCore\AuditLogger;
 use PDO;
 
 class AuthenticationService
@@ -11,10 +12,12 @@ class AuthenticationService
     private PDO $pdo;
     private SessionManager $session;
     private LoginRateLimiter $rateLimiter;
+    private AuditLogger $auditLogger;
 
     public function __construct(
-        ?SessionManager $session = null,
-        ?LoginRateLimiter $rateLimiter = null
+    ?SessionManager $session = null,
+    ?LoginRateLimiter $rateLimiter = null,
+    ?AuditLogger $auditLogger = null
     ) {
         $this->pdo = Database::connection();
 
@@ -23,6 +26,9 @@ class AuthenticationService
 
         $this->rateLimiter = $rateLimiter
             ?? new LoginRateLimiter();
+
+        $this->auditLogger = $auditLogger
+            ?? new AuditLogger();
     }
 
     public function attempt(
@@ -60,6 +66,18 @@ class AuthenticationService
             $this->rateLimiter->recordBlocked(
                 $email,
                 $ipAddress
+            );
+
+            $this->auditLogger->security(
+                'LOGIN_BLOCKED',
+                null,
+                [
+                    'identifier_hash' => hash(
+                        'sha256',
+                        $email
+                    ),
+                    'reason' => 'rate_limited',
+                ]
             );
 
             return false;
@@ -100,6 +118,18 @@ class AuthenticationService
                 'invalid_credentials'
             );
 
+            $this->auditLogger->security(
+                'LOGIN_FAILED',
+                null,
+                [
+                    'identifier_hash' => hash(
+                        'sha256',
+                        $email
+                    ),
+                    'reason' => 'invalid_credentials',
+                ]
+            );
+
             return false;
         }
 
@@ -121,6 +151,14 @@ class AuthenticationService
                 'inactive_user'
             );
 
+            $this->auditLogger->security(
+                'LOGIN_FAILED',
+                $userId,
+                [
+                    'reason' => 'inactive_user',
+                ]
+            );
+
             return false;
         }
 
@@ -140,6 +178,14 @@ class AuthenticationService
                 $ipAddress,
                 $userId,
                 'invalid_credentials'
+            );
+
+            $this->auditLogger->security(
+                'LOGIN_FAILED',
+                $userId,
+                [
+                    'reason' => 'invalid_credentials',
+                ]
             );
 
             return false;
@@ -184,11 +230,25 @@ class AuthenticationService
             $userId
         );
 
+        $this->auditLogger->security(
+            'LOGIN_SUCCESS',
+            $userId
+        );
+
         return true;
     }
 
     public function logout(): void
     {
+        $userId = $this->session->userId();
+
+        if ($userId !== null) {
+            $this->auditLogger->security(
+                'LOGOUT',
+                $userId
+            );
+        }
+
         $this->session->logout();
     }
 

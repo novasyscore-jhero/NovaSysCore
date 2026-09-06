@@ -4,11 +4,24 @@ namespace NovaSysCore;
 
 use NovaSysCore\Http\Middleware\CsrfMiddleware;
 use NovaSysCore\Http\Middleware\MiddlewarePipeline;
+use NovaSysCore\Http\Middleware\SecurityHeadersMiddleware;
 
 class Router
 {
     protected array $routes = [];
 
+    /*
+     * Se ejecutan sobre respuestas HTTP incluso cuando
+     * la ruta solicitada no existe.
+     */
+    protected array $responseMiddlewares = [
+        SecurityHeadersMiddleware::class,
+    ];
+
+    /*
+     * Se ejecutan únicamente después de encontrar
+     * una ruta válida.
+     */
     protected array $globalMiddlewares = [
         CsrfMiddleware::class,
     ];
@@ -41,15 +54,50 @@ class Router
     ): void {
         $method = strtoupper($method);
 
-        $uri = $this->removeBasePath(
-            $uri
-        );
+        $uri = $this->removeBasePath($uri);
+        $uri = $this->normalizeUri($uri);
 
-        $uri = $this->normalizeUri(
-            $uri
-        );
+        $responsePipeline =
+            new MiddlewarePipeline();
 
-        if (!isset($this->routes[$method][$uri])) {
+        /*
+         * SecurityHeadersMiddleware envuelve toda
+         * la resolución de la petición.
+         */
+        $responsePipeline->run(
+            $this->responseMiddlewares,
+            function () use (
+                $uri,
+                $method
+            ): void {
+                $this->dispatchRoute(
+                    $uri,
+                    $method
+                );
+            }
+        );
+    }
+
+    public function middleware(
+        string|object $middleware
+    ): void {
+        $this->globalMiddlewares[]
+            = $middleware;
+    }
+
+    private function dispatchRoute(
+        string $uri,
+        string $method
+    ): void {
+        /*
+         * Aunque la ruta no exista, los middlewares
+         * de respuesta ya fueron ejecutados.
+         */
+        if (
+            !isset(
+                $this->routes[$method][$uri]
+            )
+        ) {
             http_response_code(404);
 
             echo 'Ruta no encontrada';
@@ -57,14 +105,16 @@ class Router
             return;
         }
 
-        $route = $this->routes[$method][$uri];
+        $route =
+            $this->routes[$method][$uri];
 
         $middlewares = array_merge(
             $this->globalMiddlewares,
             $route['middlewares']
         );
 
-        $pipeline = new MiddlewarePipeline();
+        $pipeline =
+            new MiddlewarePipeline();
 
         $pipeline->run(
             $middlewares,
@@ -76,14 +126,9 @@ class Router
         );
     }
 
-    public function middleware(
-        string|object $middleware
-    ): void {
-        $this->globalMiddlewares[] = $middleware;
-    }
-
-    private function normalizeUri(string $uri): string
-    {
+    private function normalizeUri(
+        string $uri
+    ): string {
         $path = parse_url(
             $uri,
             PHP_URL_PATH
@@ -96,10 +141,8 @@ class Router
             return '/';
         }
 
-        $path = '/' . trim(
-            $path,
-            '/'
-        );
+        $path = '/'
+            . trim($path, '/');
 
         return $path === '/'
             ? '/'
@@ -109,9 +152,10 @@ class Router
     private function removeBasePath(
         string $uri
     ): string {
-        $basePath = Config::get(
-            'app.base_path'
-        );
+        $basePath =
+            Config::get(
+                'app.base_path'
+            );
 
         if (
             !is_string($basePath)

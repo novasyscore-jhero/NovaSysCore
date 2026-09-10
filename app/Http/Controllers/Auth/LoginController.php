@@ -19,7 +19,7 @@ class LoginController
     {
         if (Auth::user() !== null) {
             $this->redirect(
-                Url::to('/dashboard')
+                Url::to('/context')
             );
         }
 
@@ -63,7 +63,7 @@ class LoginController
         }
 
         $this->redirect(
-            Url::to('/dashboard')
+            Url::to('/context')
         );
     }
 

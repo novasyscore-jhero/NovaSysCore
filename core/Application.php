@@ -7,6 +7,11 @@ use NovaSysCore\Auth\Auth;
 use NovaSysCore\Url;
 use NovaSysCore\Security\CsrfTokenManager;
 use NovaSysCore\Http\Middleware\AuthMiddleware;
+use App\Http\Controllers\Context\CompanyContextController;
+use NovaSysCore\Http\Middleware\CompanyContextMiddleware;
+use NovaSysCore\Context\CompanyContextStore;
+use NovaSysCore\Database;
+
 
 class Application
 {
@@ -42,6 +47,40 @@ class Application
         $router = $this->container->make('router');
 
         /*
+        * =====================================================
+        * CONTEXTO EMPRESARIAL
+        * =====================================================
+        */
+
+        $router->get(
+            '/context',
+            function (): void {
+
+                $controller =
+                    new CompanyContextController();
+
+                $controller->index();
+            },
+            [
+                AuthMiddleware::class,
+            ]
+        );
+
+        $router->post(
+            '/context/select',
+            function (): void {
+
+                $controller =
+                    new CompanyContextController();
+
+                $controller->select();
+            },
+            [
+                AuthMiddleware::class,
+            ]
+        );
+
+        /*
          * =====================================================
          * RUTA INICIAL
          * =====================================================
@@ -51,7 +90,7 @@ class Application
 
             if (Auth::check()) {
                 header(
-                    'Location: ' . Url::to('/dashboard')
+                    'Location: ' . Url::to('/context')
                 );
                 exit;
             }
@@ -102,6 +141,45 @@ class Application
         $router->get(
             '/dashboard',
             function (): void {
+
+            $context =
+                CompanyContextStore::get();
+
+            if ($context === null) {
+                return;
+            }
+
+            $pdo = Database::connection();
+
+            $statement = $pdo->prepare("
+                SELECT
+                    c.name AS company_name,
+                    b.name AS branch_name
+                FROM companies c
+
+                LEFT JOIN branches b
+                    ON b.id = :branch_id
+                AND b.company_id = c.id
+
+                WHERE c.id = :company_id
+                LIMIT 1
+            ");
+
+            $statement->execute([
+                'company_id' => $context->companyId(),
+                'branch_id' => $context->branchId(),
+            ]);
+
+            $businessContext =
+                $statement->fetch();
+
+            $companyName =
+                $businessContext['company_name']
+                ?? 'Empresa no disponible';
+
+            $branchName =
+                $businessContext['branch_name']
+                ?? 'Sin sucursal seleccionada';
 
                 $user = Auth::user();
 
@@ -156,6 +234,30 @@ class Application
                     )
                     . '</p>';
 
+                echo '<hr style="
+                    margin:25px 0;
+                    border:0;
+                    border-top:1px solid #d1d5db;
+                ">';
+
+                echo '<p><strong>Contexto empresarial</strong></p>';
+
+                echo '<p>Empresa: <strong>'
+                    . htmlspecialchars(
+                        $companyName,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    )
+                    . '</strong></p>';
+
+                echo '<p>Sucursal: <strong>'
+                    . htmlspecialchars(
+                        $branchName,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    )
+                    . '</strong></p>';
+
                 echo '
                     <form
                         method="POST"
@@ -191,6 +293,7 @@ class Application
             },
             [
                 AuthMiddleware::class,
+                CompanyContextMiddleware::class,
             ]
         );
 

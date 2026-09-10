@@ -20,7 +20,10 @@ function addTest(
 
 function resetTestSession(): void
 {
-    if (session_status() === PHP_SESSION_ACTIVE) {
+    if (
+        session_status()
+        === PHP_SESSION_ACTIVE
+    ) {
         $_SESSION = [];
         session_destroy();
     }
@@ -42,26 +45,37 @@ $session->start();
 addTest(
     $tests,
     'PHP usa solamente cookies para la sesion',
-    ini_get('session.use_only_cookies') === '1'
+    ini_get(
+        'session.use_only_cookies'
+    ) === '1'
 );
 
 addTest(
     $tests,
     'PHP tiene strict mode habilitado',
-    ini_get('session.use_strict_mode') === '1'
+    ini_get(
+        'session.use_strict_mode'
+    ) === '1'
 );
 
 addTest(
     $tests,
     'PHP no permite SID por URL',
-    ini_get('session.use_trans_sid') === '0'
+    ini_get(
+        'session.use_trans_sid'
+    ) === '0'
 );
 
 /*
  * =========================================================
- * 2. SESIÓN AUTENTICADA VÁLIDA
+ * 2. NUEVO LOGIN NO HEREDA CONTEXTO ANTERIOR
  * =========================================================
  */
+
+$session->setCompanyContext(
+    9001,
+    9002
+);
 
 $session->login(1001);
 
@@ -77,11 +91,134 @@ addTest(
     $session->userId() === 1001
 );
 
+addTest(
+    $tests,
+    'Un nuevo login elimina contexto empresarial previo',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
+);
+
 /*
  * =========================================================
- * 3. EXPIRACIÓN POR INACTIVIDAD
+ * 3. CONTEXTO EMPRESARIAL EN SESIÓN
  * =========================================================
  */
+
+$session->setCompanyContext(
+    2001,
+    3001
+);
+
+addTest(
+    $tests,
+    'La sesion conserva la empresa seleccionada',
+    $session->companyContextId() === 2001
+);
+
+addTest(
+    $tests,
+    'La sesion conserva la sucursal seleccionada',
+    $session->branchContextId() === 3001
+);
+
+/*
+ * Cambiar la sucursal debe reemplazar la anterior.
+ */
+$session->setCompanyContext(
+    2001,
+    3002
+);
+
+addTest(
+    $tests,
+    'La sesion puede cambiar la sucursal seleccionada',
+    $session->companyContextId() === 2001
+        && $session->branchContextId()
+            === 3002
+);
+
+/*
+ * Seleccionar solamente empresa elimina la
+ * sucursal anterior.
+ */
+$session->setCompanyContext(
+    2002
+);
+
+addTest(
+    $tests,
+    'El contexto puede existir solamente con empresa',
+    $session->companyContextId() === 2002
+        && $session->branchContextId()
+            === null
+);
+
+/*
+ * Limpiamos manualmente el contexto.
+ */
+$session->setCompanyContext(
+    2001,
+    3001
+);
+
+$session->clearCompanyContext();
+
+addTest(
+    $tests,
+    'El contexto empresarial puede limpiarse',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
+);
+
+/*
+ * =========================================================
+ * 4. VALIDACIÓN DE IDs DEL CONTEXTO
+ * =========================================================
+ */
+
+$invalidCompanyRejected = false;
+
+try {
+    $session->setCompanyContext(0);
+} catch (\InvalidArgumentException) {
+    $invalidCompanyRejected = true;
+}
+
+addTest(
+    $tests,
+    'Rechaza un ID de empresa invalido',
+    $invalidCompanyRejected
+);
+
+$invalidBranchRejected = false;
+
+try {
+    $session->setCompanyContext(
+        2001,
+        0
+    );
+} catch (\InvalidArgumentException) {
+    $invalidBranchRejected = true;
+}
+
+addTest(
+    $tests,
+    'Rechaza un ID de sucursal invalido',
+    $invalidBranchRejected
+);
+
+/*
+ * =========================================================
+ * 5. EXPIRACIÓN POR INACTIVIDAD
+ * =========================================================
+ */
+
+$session->setCompanyContext(
+    2001,
+    3001
+);
 
 $_SESSION['auth_last_activity_at'] =
     time() - (31 * 60);
@@ -98,9 +235,17 @@ addTest(
     $session->userId() === null
 );
 
+addTest(
+    $tests,
+    'La expiracion por inactividad elimina el contexto',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
+);
+
 /*
  * =========================================================
- * 4. EXPIRACIÓN ABSOLUTA
+ * 6. EXPIRACIÓN ABSOLUTA
  * =========================================================
  */
 
@@ -108,6 +253,11 @@ resetTestSession();
 
 $session = new SessionManager();
 $session->login(1002);
+
+$session->setCompanyContext(
+    2002,
+    3002
+);
 
 $_SESSION['auth_started_at'] =
     time() - (9 * 3600);
@@ -127,9 +277,49 @@ addTest(
     $session->userId() === null
 );
 
+addTest(
+    $tests,
+    'La expiracion absoluta elimina el contexto',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
+);
+
 /*
  * =========================================================
- * 5. SESIÓN ANÓNIMA
+ * 7. LOGOUT
+ * =========================================================
+ */
+
+resetTestSession();
+
+$session = new SessionManager();
+$session->login(1003);
+
+$session->setCompanyContext(
+    2003,
+    3003
+);
+
+$session->logout();
+
+addTest(
+    $tests,
+    'Logout elimina la identidad autenticada',
+    $session->check() === false
+);
+
+addTest(
+    $tests,
+    'Logout elimina el contexto empresarial',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
+);
+
+/*
+ * =========================================================
+ * 8. SESIÓN ANÓNIMA
  * =========================================================
  */
 
@@ -138,20 +328,28 @@ resetTestSession();
 $session = new SessionManager();
 $session->start();
 
-$_SESSION['csrf_test_value'] = 'alive';
+$_SESSION[
+    'csrf_test_value'
+] = 'alive';
 
 $session->start();
 
 addTest(
     $tests,
     'Una sesion anonima no aplica timeout de autenticacion',
-    isset($_SESSION['csrf_test_value'])
-        && $_SESSION['csrf_test_value'] === 'alive'
+    isset(
+        $_SESSION[
+            'csrf_test_value'
+        ]
+    )
+        && $_SESSION[
+            'csrf_test_value'
+        ] === 'alive'
 );
 
 /*
  * =========================================================
- * 6. METADATOS DE AUTENTICACIÓN INCOMPLETOS
+ * 9. METADATOS DE AUTENTICACIÓN INCOMPLETOS
  * =========================================================
  */
 
@@ -160,12 +358,30 @@ resetTestSession();
 $session = new SessionManager();
 $session->start();
 
-$_SESSION['auth_user_id'] = 1003;
+$_SESSION[
+    'auth_user_id'
+] = 1004;
+
+$_SESSION[
+    'context_company_id'
+] = 2004;
+
+$_SESSION[
+    'context_branch_id'
+] = 3004;
 
 addTest(
     $tests,
     'Una sesion autenticada sin metadatos temporales se invalida',
     $session->check() === false
+);
+
+addTest(
+    $tests,
+    'Una sesion invalida tampoco conserva contexto empresarial',
+    $session->companyContextId() === null
+        && $session->branchContextId()
+            === null
 );
 
 /*
@@ -187,8 +403,10 @@ echo PHP_EOL;
 echo 'NovaSysCore - Session Security Test'
     . PHP_EOL;
 
-echo str_repeat('=', 78)
-    . PHP_EOL;
+echo str_repeat(
+    '=',
+    78
+) . PHP_EOL;
 
 $passed = 0;
 $failed = 0;
@@ -211,8 +429,10 @@ foreach ($tests as $test) {
     echo PHP_EOL;
 }
 
-echo str_repeat('-', 78)
-    . PHP_EOL;
+echo str_repeat(
+    '-',
+    78
+) . PHP_EOL;
 
 echo "Correctas: {$passed}"
     . PHP_EOL;

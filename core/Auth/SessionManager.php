@@ -14,6 +14,12 @@ class SessionManager
     private const AUTH_LAST_ACTIVITY_AT_KEY =
         'auth_last_activity_at';
 
+    private const CONTEXT_COMPANY_ID_KEY =
+    'context_company_id';
+
+    private const CONTEXT_BRANCH_ID_KEY =
+        'context_branch_id';
+
     private bool $started = false;
 
     public function start(): void
@@ -93,6 +99,20 @@ class SessionManager
                 'No fue posible regenerar la sesión.'
             );
         }
+
+        /*
+        * El contexto empresarial pertenece a la identidad
+        * autenticada. Un nuevo login nunca debe heredar
+        * el contexto de una identidad o sesión anterior.
+        */
+        unset(
+            $_SESSION[
+                self::CONTEXT_COMPANY_ID_KEY
+            ],
+            $_SESSION[
+                self::CONTEXT_BRANCH_ID_KEY
+            ]
+        );
 
         $now = time();
 
@@ -174,6 +194,109 @@ class SessionManager
         return $_SESSION[
             self::AUTH_USER_KEY
         ];
+    }
+
+    public function setCompanyContext(
+    int $companyId,
+    ?int $branchId = null
+    ): void {
+        if ($companyId <= 0) {
+            throw new \InvalidArgumentException(
+                'El ID de la empresa no es válido.'
+            );
+        }
+
+        if (
+            $branchId !== null
+            && $branchId <= 0
+        ) {
+            throw new \InvalidArgumentException(
+                'El ID de la sucursal no es válido.'
+            );
+        }
+
+        $this->start();
+
+        /*
+        * La sesión solo recuerda la selección.
+        * La validez y autorización del contexto se
+        * comprobarán posteriormente contra la BD.
+        */
+        $_SESSION[
+            self::CONTEXT_COMPANY_ID_KEY
+        ] = $companyId;
+
+        if ($branchId === null) {
+            unset(
+                $_SESSION[
+                    self::CONTEXT_BRANCH_ID_KEY
+                ]
+            );
+
+            return;
+        }
+
+        $_SESSION[
+            self::CONTEXT_BRANCH_ID_KEY
+        ] = $branchId;
+    }
+
+    public function companyContextId(): ?int
+    {
+        $this->start();
+
+        $companyId =
+            $_SESSION[
+                self::CONTEXT_COMPANY_ID_KEY
+            ]
+            ?? null;
+
+        if (
+            !is_int($companyId)
+            || $companyId <= 0
+        ) {
+            return null;
+        }
+
+        return $companyId;
+    }
+
+    public function branchContextId(): ?int
+    {
+        $this->start();
+
+        $branchId =
+            $_SESSION[
+                self::CONTEXT_BRANCH_ID_KEY
+            ]
+            ?? null;
+
+        if ($branchId === null) {
+            return null;
+        }
+
+        if (
+            !is_int($branchId)
+            || $branchId <= 0
+        ) {
+            return null;
+        }
+
+        return $branchId;
+    }
+
+    public function clearCompanyContext(): void
+    {
+        $this->start();
+
+        unset(
+            $_SESSION[
+                self::CONTEXT_COMPANY_ID_KEY
+            ],
+            $_SESSION[
+                self::CONTEXT_BRANCH_ID_KEY
+            ]
+        );
     }
 
     private function validateAuthenticationLifetime(): void

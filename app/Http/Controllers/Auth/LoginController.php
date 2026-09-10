@@ -88,8 +88,9 @@ class LoginController
         );
     }
 
-    private function redirect(string $location): never
-    {
+    private function redirect(
+    string $location
+    ): never {
         header(
             'Location: ' . $location
         );

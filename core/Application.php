@@ -68,12 +68,40 @@ class Application
 
         $router->post(
             '/context/select',
+            
             function (): void {
 
                 $controller =
                     new CompanyContextController();
 
                 $controller->select();
+            },
+            [
+                AuthMiddleware::class,
+            ]
+            
+        );
+
+        $router->get(
+            '/context/branch',
+            function (): void {
+                $controller =
+                    new CompanyContextController();
+
+                $controller->branch();
+            },
+            [
+                AuthMiddleware::class,
+            ]
+        );
+
+        $router->post(
+            '/context/branch/select',
+            function (): void {
+                $controller =
+                    new CompanyContextController();
+
+                $controller->selectBranch();
             },
             [
                 AuthMiddleware::class,

@@ -49,10 +49,10 @@ class Application
         $router = $this->container->make('router');
 
         /*
-        * =====================================================
-        * CONTEXTO EMPRESARIAL
-        * =====================================================
-        */
+         * =====================================================
+         * CONTEXTO EMPRESARIAL
+         * =====================================================
+         */
 
         $router->get(
             '/context',
@@ -70,7 +70,7 @@ class Application
 
         $router->post(
             '/context/select',
-            
+
             function (): void {
 
                 $controller =
@@ -81,7 +81,7 @@ class Application
             [
                 AuthMiddleware::class,
             ]
-            
+
         );
 
         $router->get(
@@ -159,10 +159,10 @@ class Application
         });
 
         /*
-        * =====================================================
-        * USUARIOS
-        * =====================================================
-        */
+         * =====================================================
+         * USUARIOS
+         * =====================================================
+         */
 
         $router->get(
             '/users',
@@ -170,6 +170,16 @@ class Application
                 $controller = new UserController();
 
                 $controller->index();
+            },
+            BusinessMiddleware::permission('users.view')
+        );
+
+        $router->get(
+            '/users/{id}',
+            function (string $id): void {
+                $controller = new UserController();
+
+                $controller->show($id);
             },
             BusinessMiddleware::permission('users.view')
         );
@@ -188,16 +198,16 @@ class Application
             '/dashboard',
             function (): void {
 
-            $context =
-                CompanyContextStore::get();
+                $context =
+                    CompanyContextStore::get();
 
-            if ($context === null) {
-                return;
-            }
+                if ($context === null) {
+                    return;
+                }
 
-            $pdo = Database::connection();
+                $pdo = Database::connection();
 
-            $statement = $pdo->prepare("
+                $statement = $pdo->prepare("
                 SELECT
                     c.name AS company_name,
                     b.name AS branch_name
@@ -211,21 +221,21 @@ class Application
                 LIMIT 1
             ");
 
-            $statement->execute([
-                'company_id' => $context->companyId(),
-                'branch_id' => $context->branchId(),
-            ]);
+                $statement->execute([
+                    'company_id' => $context->companyId(),
+                    'branch_id' => $context->branchId(),
+                ]);
 
-            $businessContext =
-                $statement->fetch();
+                $businessContext =
+                    $statement->fetch();
 
-            $companyName =
-                $businessContext['company_name']
-                ?? 'Empresa no disponible';
+                $companyName =
+                    $businessContext['company_name']
+                    ?? 'Empresa no disponible';
 
-            $branchName =
-                $businessContext['branch_name']
-                ?? 'Sin sucursal seleccionada';
+                $branchName =
+                    $businessContext['branch_name']
+                    ?? 'Sin sucursal seleccionada';
 
                 $user = Auth::user();
 
@@ -308,24 +318,24 @@ class Application
                     <form
                         method="POST"
                         action="'
-                        . htmlspecialchars(
-                            Url::to('/logout'),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        )
-                        . '"
+                    . htmlspecialchars(
+                        Url::to('/logout'),
+                        ENT_QUOTES,
+                        'UTF-8'
+                    )
+                    . '"
                         style="margin-top:30px;"
                     >
                         <input
                             type="hidden"
                             name="_token"
                             value="'
-                            . htmlspecialchars(
-                                $csrfToken,
-                                ENT_QUOTES,
-                                'UTF-8'
-                            )
-                            . '"
+                    . htmlspecialchars(
+                        $csrfToken,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    )
+                    . '"
                         >
 
                         <button type="submit">

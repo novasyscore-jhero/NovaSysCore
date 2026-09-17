@@ -78,36 +78,10 @@ class Router
         );
     }
 
-    public function middleware(
-        string|object $middleware
+    private function executeRoute(
+    array $route,
+    array $parameters
     ): void {
-        $this->globalMiddlewares[]
-            = $middleware;
-    }
-
-    private function dispatchRoute(
-        string $uri,
-        string $method
-    ): void {
-        /*
-         * Aunque la ruta no exista, los middlewares
-         * de respuesta ya fueron ejecutados.
-         */
-        if (
-            !isset(
-                $this->routes[$method][$uri]
-            )
-        ) {
-            http_response_code(404);
-
-            echo 'Ruta no encontrada';
-
-            return;
-        }
-
-        $route =
-            $this->routes[$method][$uri];
-
         $middlewares = array_merge(
             $this->globalMiddlewares,
             $route['middlewares']
@@ -118,13 +92,158 @@ class Router
 
         $pipeline->run(
             $middlewares,
-            function () use ($route): void {
-                call_user_func(
-                    $route['action']
+            function () use (
+                $route,
+                $parameters
+            ): void {
+                call_user_func_array(
+                    $route['action'],
+                    $parameters
                 );
             }
         );
     }
+
+    private function matchDynamicRoute(
+        string $routeUri,
+        string $requestUri
+    ): ?array {
+        /*
+        * Una ruta sin parámetros dinámicos ya fue
+        * evaluada mediante coincidencia exacta.
+        */
+        if (!str_contains($routeUri, '{')) {
+            return null;
+        }
+
+        $routeSegments =
+            explode(
+                '/',
+                trim($routeUri, '/')
+            );
+
+        $requestSegments =
+            explode(
+                '/',
+                trim($requestUri, '/')
+            );
+
+        /*
+        * Una ruta solamente puede coincidir si tiene
+        * exactamente el mismo número de segmentos.
+        */
+        if (
+            count($routeSegments)
+            !== count($requestSegments)
+        ) {
+            return null;
+        }
+
+        $parameters = [];
+
+        foreach (
+            $routeSegments
+            as $index => $routeSegment
+        ) {
+            $requestSegment =
+                $requestSegments[$index];
+
+            /*
+            * Detectamos segmentos completos del tipo:
+            *
+            * {id}
+            * {user}
+            * {company}
+            */
+            if (
+                preg_match(
+                    '/^\{([A-Za-z_][A-Za-z0-9_]*)\}$/',
+                    $routeSegment
+                ) === 1
+            ) {
+                if ($requestSegment === '') {
+                    return null;
+                }
+
+                $parameters[] =
+                    rawurldecode(
+                        $requestSegment
+                    );
+
+                continue;
+            }
+
+            /*
+            * Los segmentos estáticos deben coincidir
+            * exactamente.
+            */
+            if ($routeSegment !== $requestSegment) {
+                return null;
+            }
+        }
+
+        return $parameters;
+    }
+
+    public function middleware(
+        string|object $middleware
+    ): void {
+        $this->globalMiddlewares[]
+            = $middleware;
+    }
+
+    private function dispatchRoute(
+    string $uri,
+    string $method
+    ): void {
+    /*
+     * Primero intentamos una coincidencia exacta.
+     * Esto garantiza que una ruta estática como
+     * /users/create tenga prioridad sobre /users/{id}.
+     */
+    if (isset($this->routes[$method][$uri])) {
+        $this->executeRoute(
+            $this->routes[$method][$uri],
+            []
+        );
+
+        return;
+    }
+
+    /*
+     * Si no existe una coincidencia exacta,
+     * buscamos una ruta dinámica.
+     */
+    foreach (
+        $this->routes[$method] ?? []
+        as $routeUri => $route
+    ) {
+        $parameters =
+            $this->matchDynamicRoute(
+                $routeUri,
+                $uri
+            );
+
+        if ($parameters === null) {
+            continue;
+        }
+
+        $this->executeRoute(
+            $route,
+            $parameters
+        );
+
+        return;
+    }
+
+    /*
+     * Aunque la ruta no exista, los middlewares
+     * de respuesta ya fueron ejecutados.
+     */
+    http_response_code(404);
+
+    echo 'Ruta no encontrada';
+}
 
     private function normalizeUri(
         string $uri

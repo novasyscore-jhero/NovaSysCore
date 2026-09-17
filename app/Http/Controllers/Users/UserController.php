@@ -123,17 +123,8 @@ class UserController
         /*
          * La vista la agregaremos en el siguiente paso.
          */
-        echo htmlspecialchars(
-            $user['display_name']
-            ?: trim(
-                ($user['name'] ?? '')
-                . ' '
-                . ($user['last_name'] ?? '')
-            )
-            ?: $user['email'],
-            ENT_QUOTES,
-            'UTF-8'
-        );
+        require dirname(__DIR__, 3)
+            . '/Views/users/show.php';
     }
 
     private function notFound(): void

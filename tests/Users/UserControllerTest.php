@@ -23,6 +23,7 @@ function checkUserController(
     if ($condition) {
         echo "[OK] {$label}" . PHP_EOL;
         $correct++;
+
         return;
     }
 
@@ -130,7 +131,7 @@ try {
 
     /*
      * =====================================================
-     * 1. ID inválido
+     * 1. ID INVÁLIDO
      * =====================================================
      */
 
@@ -154,7 +155,7 @@ try {
 
     /*
      * =====================================================
-     * 2. ID inexistente
+     * 2. ID INEXISTENTE
      * =====================================================
      */
 
@@ -209,9 +210,6 @@ try {
      * =====================================================
      * 4. MISMO USUARIO DESDE EMPRESA BETA
      * =====================================================
-     *
-     * Cambiamos únicamente el contexto empresarial.
-     * Ahora el mismo ID sí debe ser visible.
      */
 
     $betaContext =
@@ -236,9 +234,27 @@ try {
     );
 
     checkUserController(
-        'Empresa Beta recibe el usuario correcto',
-        $result['output']
-            === 'Usuario Beta Temporal'
+        'Empresa Beta muestra el nombre del usuario',
+        str_contains(
+            $result['output'],
+            'Usuario Beta Temporal'
+        )
+    );
+
+    checkUserController(
+        'Empresa Beta muestra el correo correcto',
+        str_contains(
+            $result['output'],
+            $temporaryEmail
+        )
+    );
+
+    checkUserController(
+        'Vista del usuario no expone password_hash',
+        !str_contains(
+            $result['output'],
+            'password_hash'
+        )
     );
 
     /*
@@ -271,14 +287,11 @@ try {
         . $exception->getMessage()
         . PHP_EOL;
 } finally {
-    /*
-     * Limpiamos siempre el contexto request-local.
-     */
     CompanyContextStore::clear();
 
     /*
-     * Ningún dato de esta prueba debe permanecer
-     * en la base de datos.
+     * Ningún dato temporal de esta prueba
+     * debe permanecer en la base de datos.
      */
     if (
         $startedTransaction

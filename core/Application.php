@@ -11,6 +11,8 @@ use App\Http\Controllers\Context\CompanyContextController;
 use NovaSysCore\Http\Middleware\CompanyContextMiddleware;
 use NovaSysCore\Context\CompanyContextStore;
 use NovaSysCore\Database;
+use App\Http\Controllers\Users\UserController;
+use NovaSysCore\Http\Middleware\BusinessMiddleware;
 
 
 class Application
@@ -155,6 +157,22 @@ class Application
 
             $controller->logout();
         });
+
+        /*
+        * =====================================================
+        * USUARIOS
+        * =====================================================
+        */
+
+        $router->get(
+            '/users',
+            function (): void {
+                $controller = new UserController();
+
+                $controller->index();
+            },
+            BusinessMiddleware::permission('users.view')
+        );
 
         /*
          * =====================================================

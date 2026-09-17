@@ -5,13 +5,11 @@ use NovaSysCore\Url;
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Usuarios | NovaSysCore</title>
 </head>
@@ -48,13 +46,11 @@ use NovaSysCore\Url;
                 </p>
             </div>
 
-            <a
-                href="<?= htmlspecialchars(
-                    Url::to('/dashboard'),
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-            >
+            <a href="<?= htmlspecialchars(
+                Url::to('/dashboard'),
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>">
                 Volver al dashboard
             </a>
         </div>
@@ -103,9 +99,9 @@ use NovaSysCore\Url;
 
                     <tbody>
 
-                    <?php foreach ($users as $user): ?>
+                        <?php foreach ($users as $user): ?>
 
-                        <?php
+                            <?php
                             $displayName =
                                 $user['display_name']
                                 ?: trim(
@@ -118,39 +114,49 @@ use NovaSysCore\Url;
                                 $displayName =
                                     $user['email'];
                             }
-                        ?>
+                            ?>
 
-                        <tr style="
+                            <tr style="
                             border-top:1px solid #e5e7eb;
                         ">
 
-                            <td style="padding:14px;">
-                                <?= htmlspecialchars(
-                                    $displayName,
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>
-                            </td>
+                                <td style="padding:14px;">
+                                    <?= htmlspecialchars(
+                                        $displayName,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </td>
 
-                            <td style="padding:14px;">
-                                <?= htmlspecialchars(
-                                    $user['email'],
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>
-                            </td>
+                                <td style="padding:14px;">
+                                    <?= htmlspecialchars(
+                                        $user['email'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </td>
 
-                            <td style="padding:14px;">
-                                <?= htmlspecialchars(
-                                    $user['status'],
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>
-                            </td>
+                                <td style="padding:14px;">
+                                    <a href="<?= htmlspecialchars(
+                                        Url::to('/users/' . (int) $user['id']),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>" style="
+            color:#2563eb;
+            text-decoration:none;
+            font-weight:600;
+        ">
+                                        <?= htmlspecialchars(
+                                            $displayName,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </a>
+                                </td>
 
-                        </tr>
+                            </tr>
 
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
 
                     </tbody>
                 </table>
@@ -161,4 +167,5 @@ use NovaSysCore\Url;
     </div>
 
 </body>
+
 </html>

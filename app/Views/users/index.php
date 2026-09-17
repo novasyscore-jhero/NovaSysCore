@@ -116,16 +116,24 @@ use NovaSysCore\Url;
                             }
                             ?>
 
-                            <tr style="
-                            border-top:1px solid #e5e7eb;
-                        ">
+                            <tr style="border-top:1px solid #e5e7eb;">
 
                                 <td style="padding:14px;">
-                                    <?= htmlspecialchars(
-                                        $displayName,
+                                    <a href="<?= htmlspecialchars(
+                                        Url::to('/users/' . (int) $user['id']),
                                         ENT_QUOTES,
                                         'UTF-8'
-                                    ) ?>
+                                    ) ?>" style="
+                color:#2563eb;
+                text-decoration:none;
+                font-weight:600;
+            ">
+                                        <?= htmlspecialchars(
+                                            $displayName,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </a>
                                 </td>
 
                                 <td style="padding:14px;">
@@ -137,21 +145,13 @@ use NovaSysCore\Url;
                                 </td>
 
                                 <td style="padding:14px;">
-                                    <a href="<?= htmlspecialchars(
-                                        Url::to('/users/' . (int) $user['id']),
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>" style="
-            color:#2563eb;
-            text-decoration:none;
-            font-weight:600;
-        ">
-                                        <?= htmlspecialchars(
-                                            $displayName,
+                                    <?= $user['status'] === 'active'
+                                        ? 'Activo'
+                                        : htmlspecialchars(
+                                            $user['status'],
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
-                                    </a>
                                 </td>
 
                             </tr>
@@ -160,6 +160,73 @@ use NovaSysCore\Url;
 
                     </tbody>
                 </table>
+                <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    padding:18px 14px;
+    border-top:1px solid #e5e7eb;
+">
+
+                    <div style="
+        font-size:14px;
+        color:#6b7280;
+    ">
+                        <?= number_format($totalUsers) ?>
+                        <?= $totalUsers === 1 ? 'usuario' : 'usuarios' ?>
+
+                        · Página <?= (int) $page ?>
+                        de <?= (int) $totalPages ?>
+                    </div>
+
+                    <div style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+    ">
+
+                        <?php if ($page > 1): ?>
+                            <a href="<?= htmlspecialchars(
+                                Url::to(
+                                    '/users?page=' . ($page - 1)
+                                ),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>" style="
+                    padding:8px 14px;
+                    border:1px solid #d1d5db;
+                    border-radius:7px;
+                    text-decoration:none;
+                    color:#111827;
+                    background:white;
+                ">
+                                Anterior
+                            </a>
+                        <?php endif; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <a href="<?= htmlspecialchars(
+                                Url::to(
+                                    '/users?page=' . ($page + 1)
+                                ),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>" style="
+                    padding:8px 14px;
+                    border:1px solid #d1d5db;
+                    border-radius:7px;
+                    text-decoration:none;
+                    color:#111827;
+                    background:white;
+                ">
+                                Siguiente
+                            </a>
+                        <?php endif; ?>
+
+                    </div>
+
+                </div>
             </div>
 
         <?php endif; ?>

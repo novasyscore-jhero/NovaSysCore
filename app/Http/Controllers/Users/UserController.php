@@ -42,7 +42,42 @@ class UserController
             $page = 1;
         }
 
+        /*
+         * =====================================================
+         * BÚSQUEDA
+         * =====================================================
+         */
+
+        $search = trim(
+            (string) ($_GET['q'] ?? '')
+        );
+
+        if (mb_strlen($search) > 100) {
+            $search = mb_substr(
+                $search,
+                0,
+                100
+            );
+        }
+
         $pdo = Database::connection();
+
+        /*
+         * Construimos el filtro solamente cuando existe
+         * un término de búsqueda.
+         */
+        $searchSql = '';
+
+        if ($search !== '') {
+            $searchSql = "
+            AND (
+                u.name LIKE :search_name
+                OR u.last_name LIKE :search_last_name
+                OR u.display_name LIKE :search_display_name
+                OR u.email LIKE :search_email
+            )
+        ";
+        }
 
         /*
          * =====================================================
@@ -60,11 +95,46 @@ class UserController
             AND uc.status = 'active'
 
         WHERE u.status = 'active'
+
+        {$searchSql}
     ");
 
-        $countStatement->execute([
-            'company_id' => $context->companyId(),
-        ]);
+        $countStatement->bindValue(
+            ':company_id',
+            $context->companyId(),
+            \PDO::PARAM_INT
+        );
+
+        if ($search !== '') {
+            $searchPattern =
+                '%' . $search . '%';
+
+            $countStatement->bindValue(
+                ':search_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $countStatement->bindValue(
+                ':search_last_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $countStatement->bindValue(
+                ':search_display_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $countStatement->bindValue(
+                ':search_email',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+        }
+
+        $countStatement->execute();
 
         $totalUsers =
             (int) $countStatement->fetchColumn();
@@ -76,10 +146,6 @@ class UserController
             )
         );
 
-        /*
-         * Si solicitan una página superior a la última,
-         * mostramos la última página disponible.
-         */
         if ($page > $totalPages) {
             $page = $totalPages;
         }
@@ -110,6 +176,8 @@ class UserController
 
         WHERE u.status = 'active'
 
+        {$searchSql}
+
         ORDER BY
             COALESCE(
                 NULLIF(u.display_name, ''),
@@ -127,6 +195,32 @@ class UserController
             $context->companyId(),
             \PDO::PARAM_INT
         );
+
+        if ($search !== '') {
+            $statement->bindValue(
+                ':search_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $statement->bindValue(
+                ':search_last_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $statement->bindValue(
+                ':search_display_name',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+
+            $statement->bindValue(
+                ':search_email',
+                $searchPattern,
+                \PDO::PARAM_STR
+            );
+        }
 
         $statement->bindValue(
             ':limit',

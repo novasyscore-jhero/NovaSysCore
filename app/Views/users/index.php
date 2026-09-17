@@ -55,6 +55,58 @@ use NovaSysCore\Url;
             </a>
         </div>
 
+        <form method="GET" action="<?= htmlspecialchars(
+            Url::to('/users'),
+            ENT_QUOTES,
+            'UTF-8'
+                    ) ?>" style="
+            display:flex;
+            gap:10px;
+            margin-bottom:20px;
+        ">
+            <input type="search" name="q" value="<?= htmlspecialchars(
+                $search,
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>" placeholder="Buscar por nombre o correo..." maxlength="100" style="
+            flex:1;
+            padding:11px 14px;
+            border:1px solid #d1d5db;
+            border-radius:8px;
+            font-size:14px;
+            ">
+
+            <button type="submit" style="
+                padding:11px 18px;
+                border:0;
+                border-radius:8px;
+                background:#111827;
+                color:white;
+                cursor:pointer;
+            ">
+            Buscar
+            </button>
+
+            <?php if ($search !== ''): ?>
+                <a href="<?= htmlspecialchars(
+                    Url::to('/users'),
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>" style="
+                display:flex;
+                align-items:center;
+                padding:11px 16px;
+                border:1px solid #d1d5db;
+                border-radius:8px;
+                text-decoration:none;
+                color:#111827;
+                background:white;
+            ">
+                    Limpiar
+                </a>
+            <?php endif; ?>
+        </form>
+
         <?php if (empty($users)): ?>
 
             <div style="
@@ -62,7 +114,22 @@ use NovaSysCore\Url;
                 padding:25px;
                 border-radius:10px;
             ">
-                No hay usuarios disponibles.
+                <?php if ($search !== ''): ?>
+
+                    No se encontraron usuarios para
+                    <strong>
+                        "<?= htmlspecialchars(
+                            $search,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
+                    </strong>.
+
+                <?php else: ?>
+
+                    No hay usuarios disponibles.
+
+                <?php endif; ?>
             </div>
 
         <?php else: ?>
@@ -161,18 +228,23 @@ use NovaSysCore\Url;
                     </tbody>
                 </table>
                 <div style="
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    padding:18px 14px;
-    border-top:1px solid #e5e7eb;
-">
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:20px;
+                    padding:18px 14px;
+                    border-top:1px solid #e5e7eb;
+                ">
+                <?php
+                $searchQuery = $search !== ''
+                    ? '&q=' . rawurlencode($search)
+                    : '';
+                ?>
 
                     <div style="
-        font-size:14px;
-        color:#6b7280;
-    ">
+                        font-size:14px;
+                        color:#6b7280;
+                    ">
                         <?= number_format($totalUsers) ?>
                         <?= $totalUsers === 1 ? 'usuario' : 'usuarios' ?>
 
@@ -181,26 +253,27 @@ use NovaSysCore\Url;
                     </div>
 
                     <div style="
-        display:flex;
-        align-items:center;
-        gap:10px;
-    ">
+                        display:flex;
+                        align-items:center;
+                        gap:10px;
+                    ">
 
                         <?php if ($page > 1): ?>
                             <a href="<?= htmlspecialchars(
                                 Url::to(
                                     '/users?page=' . ($page - 1)
+                                    . $searchQuery
                                 ),
                                 ENT_QUOTES,
                                 'UTF-8'
                             ) ?>" style="
-                    padding:8px 14px;
-                    border:1px solid #d1d5db;
-                    border-radius:7px;
-                    text-decoration:none;
-                    color:#111827;
-                    background:white;
-                ">
+                        padding:8px 14px;
+                        border:1px solid #d1d5db;
+                        border-radius:7px;
+                        text-decoration:none;
+                        color:#111827;
+                        background:white;
+                    ">
                                 Anterior
                             </a>
                         <?php endif; ?>
@@ -209,17 +282,18 @@ use NovaSysCore\Url;
                             <a href="<?= htmlspecialchars(
                                 Url::to(
                                     '/users?page=' . ($page + 1)
+                                    . $searchQuery
                                 ),
                                 ENT_QUOTES,
                                 'UTF-8'
                             ) ?>" style="
-                    padding:8px 14px;
-                    border:1px solid #d1d5db;
-                    border-radius:7px;
-                    text-decoration:none;
-                    color:#111827;
-                    background:white;
-                ">
+                        padding:8px 14px;
+                        border:1px solid #d1d5db;
+                        border-radius:7px;
+                        text-decoration:none;
+                        color:#111827;
+                        background:white;
+                    ">
                                 Siguiente
                             </a>
                         <?php endif; ?>

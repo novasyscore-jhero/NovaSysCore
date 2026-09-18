@@ -6,6 +6,9 @@ use NovaSysCore\Database;
 use PDO;
 use RuntimeException;
 use Throwable;
+use App\Exceptions\Users\MembershipExistsException;
+use App\Exceptions\Users\MembershipInactiveException;
+use App\Exceptions\Users\UserInactiveException;
 
 class CompanyUserService
 {
@@ -68,9 +71,7 @@ class CompanyUserService
                     ($existingUser['status'] ?? null)
                     !== 'active'
                 ) {
-                    throw new RuntimeException(
-                        'USER_INACTIVE'
-                    );
+                    throw new UserInactiveException();
                 }
             }
 
@@ -98,14 +99,10 @@ class CompanyUserService
                     ($membership['status'] ?? null)
                     === 'active'
                 ) {
-                    throw new RuntimeException(
-                        'MEMBERSHIP_EXISTS'
-                    );
+                    throw new MembershipExistsException();
                 }
 
-                throw new RuntimeException(
-                    'MEMBERSHIP_INACTIVE'
-                );
+                throw new MembershipInactiveException();
             }
 
             $statement = $this->pdo->prepare("

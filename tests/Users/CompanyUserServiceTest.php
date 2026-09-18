@@ -4,6 +4,9 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 use App\Services\Users\CompanyUserService;
 use NovaSysCore\Database;
+use App\Exceptions\Users\MembershipExistsException;
+use App\Exceptions\Users\MembershipInactiveException;
+use App\Exceptions\Users\UserInactiveException;
 
 echo PHP_EOL;
 echo "NovaSysCore - Company User Service Test" . PHP_EOL;
@@ -140,10 +143,8 @@ try {
             '0000000000',
             'OtraClave123!'
         );
-    } catch (RuntimeException $exception) {
-        $duplicateDetected =
-            $exception->getMessage()
-            === 'MEMBERSHIP_EXISTS';
+    } catch (MembershipExistsException $exception) {
+        $duplicateDetected = true;
     }
 
     checkCompanyUserService(
@@ -249,6 +250,114 @@ try {
             'OtraClave123!',
             $userAfterBeta['password_hash']
         )
+    );
+
+    /*
+ * =====================================================
+ * 5. MEMBRESÍA INACTIVA
+ * =====================================================
+ */
+
+$statement = $pdo->prepare("
+    UPDATE user_companies
+    SET status = 'inactive'
+    WHERE user_id = :user_id
+      AND company_id = 2
+");
+
+$statement->execute([
+    ':user_id' => $userId,
+]);
+
+$inactiveMembershipDetected = false;
+
+try {
+    $service->createOrAttach(
+        2,
+        'Nombre Alterado',
+        'No Debe Guardarse',
+        'Tampoco Debe Guardarse',
+        $temporaryEmail,
+        '0000000000',
+        'OtraClave123!'
+    );
+} catch (MembershipInactiveException $exception) {
+    $inactiveMembershipDetected = true;
+}
+
+checkCompanyUserService(
+    'Detecta membresía empresarial inactiva',
+    $inactiveMembershipDetected
+);
+
+$statement = $pdo->prepare("
+    SELECT status
+    FROM user_companies
+    WHERE user_id = :user_id
+      AND company_id = 2
+    LIMIT 1
+");
+
+$statement->execute([
+    ':user_id' => $userId,
+]);
+
+checkCompanyUserService(
+    'No reactiva automáticamente la membresía',
+    $statement->fetchColumn() === 'inactive'
+);
+
+    /*
+    * =====================================================
+    * 6. IDENTIDAD GLOBAL INACTIVA
+    * =====================================================
+    */
+
+    $statement = $pdo->prepare("
+        UPDATE users
+        SET status = 'inactive'
+        WHERE id = :user_id
+    ");
+
+    $statement->execute([
+        ':user_id' => $userId,
+    ]);
+
+    $inactiveUserDetected = false;
+
+    try {
+        $service->createOrAttach(
+            1,
+            'Nombre Alterado',
+            'No Debe Guardarse',
+            'Tampoco Debe Guardarse',
+            $temporaryEmail,
+            '0000000000',
+            'OtraClave123!'
+        );
+    } catch (UserInactiveException $exception) {
+        $inactiveUserDetected = true;
+    }
+
+    checkCompanyUserService(
+        'Detecta identidad global inactiva',
+        $inactiveUserDetected
+    );
+
+    $statement = $pdo->prepare("
+        SELECT status
+        FROM users
+        WHERE id = :user_id
+        LIMIT 1
+    ");
+
+    $statement->execute([
+        ':user_id' => $userId,
+    ]);
+
+    checkCompanyUserService(
+        'No reactiva automáticamente la identidad global',
+        $statement->fetchColumn() === 'inactive'
     );
 } catch (Throwable $exception) {
     $failed++;

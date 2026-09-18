@@ -6,6 +6,9 @@ use NovaSysCore\Context\CompanyContextStore;
 use NovaSysCore\Database;
 use NovaSysCore\Url;
 use App\Services\Users\CompanyUserService;
+use App\Exceptions\Users\MembershipExistsException;
+use App\Exceptions\Users\MembershipInactiveException;
+use App\Exceptions\Users\UserInactiveException;
 
 class UserController
 {
@@ -391,32 +394,24 @@ class UserController
             );
 
             exit;
-        } catch (\RuntimeException $exception) {
-            switch ($exception->getMessage()) {
-                case 'USER_INACTIVE':
-                    http_response_code(409);
+        } catch (UserInactiveException $exception) {
+            http_response_code(409);
 
-                    echo 'La identidad existe, pero no está activa.';
+            echo 'La identidad existe, pero no está activa.';
 
-                    return;
+            return;
+        } catch (MembershipExistsException $exception) {
+            http_response_code(409);
 
-                case 'MEMBERSHIP_EXISTS':
-                    http_response_code(409);
+            echo 'El usuario ya pertenece a esta empresa.';
 
-                    echo 'El usuario ya pertenece a esta empresa.';
+            return;
+        } catch (MembershipInactiveException $exception) {
+            http_response_code(409);
 
-                    return;
+            echo 'El usuario tiene una membresía inactiva en esta empresa.';
 
-                case 'MEMBERSHIP_INACTIVE':
-                    http_response_code(409);
-
-                    echo 'El usuario tiene una membresía inactiva en esta empresa.';
-
-                    return;
-
-                default:
-                    throw $exception;
-            }
+            return;
         }
     }
     public function show(

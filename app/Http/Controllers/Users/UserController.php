@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Users;
 use NovaSysCore\Context\CompanyContextStore;
 use NovaSysCore\Database;
 use NovaSysCore\Url;
+use App\Services\Users\CompanyUserService;
 
 class UserController
 {
@@ -296,10 +297,10 @@ class UserController
         );
 
         /*
-        * =====================================================
-        * VALIDACIÓN
-        * =====================================================
-        */
+         * =====================================================
+         * VALIDACIÓN
+         * =====================================================
+         */
 
         $errors = [];
 
@@ -359,186 +360,30 @@ class UserController
         }
 
         /*
-        * Todavía no guardamos.
-        *
-        * Este mensaje es temporal mientras verificamos
-        * autorización, CSRF y validación.
-        */
+         * Todavía no guardamos.
+         *
+         * Este mensaje es temporal mientras verificamos
+         * autorización, CSRF y validación.
+         */
 
         /*
-        * =====================================================
-        * ALTA TRANSACCIONAL
-        * =====================================================
-        */
+         * =====================================================
+         * ALTA EMPRESARIAL
+         * =====================================================
+         */
 
-        $email = mb_strtolower($email);
-
-        $pdo = Database::connection();
+        $service = new CompanyUserService();
 
         try {
-            $pdo->beginTransaction();
-
-            /*
-            * Buscamos primero la identidad global.
-            */
-            $userStatement = $pdo->prepare("
-                SELECT
-                    id,
-                    status
-                FROM users
-                WHERE email = :email
-                LIMIT 1
-                FOR UPDATE
-            ");
-
-            $userStatement->execute([
-                ':email' => $email,
-            ]);
-
-            $existingUser = $userStatement->fetch();
-
-            /*
-            * =================================================
-            * IDENTIDAD NUEVA
-            * =================================================
-            */
-
-            if (!$existingUser) {
-                $passwordHash = password_hash(
-                    $password,
-                    PASSWORD_DEFAULT
-                );
-
-                if ($passwordHash === false) {
-                    throw new \RuntimeException(
-                        'No fue posible proteger la contraseña.'
-                    );
-                }
-
-                $insertUser = $pdo->prepare("
-                    INSERT INTO users (
-                        name,
-                        last_name,
-                        display_name,
-                        email,
-                        password_hash,
-                        phone,
-                        status
-                    )
-                    VALUES (
-                        :name,
-                        :last_name,
-                        :display_name,
-                        :email,
-                        :password_hash,
-                        :phone,
-                        'active'
-                    )
-                ");
-
-                $insertUser->execute([
-                    ':name' => $name,
-                    ':last_name' =>
-                        $lastName !== ''
-                            ? $lastName
-                            : null,
-                    ':display_name' =>
-                        $displayName !== ''
-                            ? $displayName
-                            : null,
-                    ':email' => $email,
-                    ':password_hash' => $passwordHash,
-                    ':phone' =>
-                        $phone !== ''
-                            ? $phone
-                            : null,
-                ]);
-
-                $userId = (int) $pdo->lastInsertId();
-            } else {
-                /*
-                * La identidad ya existe globalmente.
-                *
-                * No modificamos nombre, contraseña, teléfono
-                * ni ningún otro dato global desde este flujo.
-                */
-                $userId = (int) $existingUser['id'];
-
-                if (
-                    ($existingUser['status'] ?? null)
-                    !== 'active'
-                ) {
-                    $pdo->rollBack();
-
-                    http_response_code(409);
-
-                    echo 'La identidad existe, pero no está activa.';
-
-                    return;
-                }
-            }
-
-            /*
-            * =================================================
-            * MEMBRESÍA EMPRESARIAL
-            * =================================================
-            */
-
-            $membershipStatement = $pdo->prepare("
-                SELECT
-                    id,
-                    status
-                FROM user_companies
-                WHERE user_id = :user_id
-                AND company_id = :company_id
-                LIMIT 1
-                FOR UPDATE
-            ");
-
-            $membershipStatement->execute([
-                ':user_id' => $userId,
-                ':company_id' => $context->companyId(),
-            ]);
-
-            $membership =
-                $membershipStatement->fetch();
-
-            if ($membership) {
-                $pdo->rollBack();
-
-                http_response_code(409);
-
-                if (
-                    ($membership['status'] ?? null)
-                    === 'active'
-                ) {
-                    echo 'El usuario ya pertenece a esta empresa.';
-                } else {
-                    echo 'El usuario tiene una membresía inactiva en esta empresa.';
-                }
-
-                return;
-            }
-
-            $insertMembership = $pdo->prepare("
-                INSERT INTO user_companies (
-                    user_id,
-                    company_id,
-                    status
-                )
-                VALUES (
-                    :user_id,
-                    :company_id,
-                    'active'
-                )
-            ");
-
-            $insertMembership->execute([
-                ':user_id' => $userId,
-                ':company_id' => $context->companyId(),
-            ]);
-
-            $pdo->commit();
+            $userId = $service->createOrAttach(
+                $context->companyId(),
+                $name,
+                $lastName,
+                $displayName,
+                $email,
+                $phone,
+                $password
+            );
 
             header(
                 'Location: '
@@ -546,12 +391,32 @@ class UserController
             );
 
             exit;
-        } catch (\Throwable $exception) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
+        } catch (\RuntimeException $exception) {
+            switch ($exception->getMessage()) {
+                case 'USER_INACTIVE':
+                    http_response_code(409);
 
-            throw $exception;
+                    echo 'La identidad existe, pero no está activa.';
+
+                    return;
+
+                case 'MEMBERSHIP_EXISTS':
+                    http_response_code(409);
+
+                    echo 'El usuario ya pertenece a esta empresa.';
+
+                    return;
+
+                case 'MEMBERSHIP_INACTIVE':
+                    http_response_code(409);
+
+                    echo 'El usuario tiene una membresía inactiva en esta empresa.';
+
+                    return;
+
+                default:
+                    throw $exception;
+            }
         }
     }
     public function show(

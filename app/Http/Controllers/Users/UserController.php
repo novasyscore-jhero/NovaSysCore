@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Users;
 
 use NovaSysCore\Context\CompanyContextStore;
 use NovaSysCore\Database;
+use NovaSysCore\Url;
 
 class UserController
 {
@@ -242,6 +243,317 @@ class UserController
             . '/Views/users/index.php';
     }
 
+    public function create(): void
+    {
+        $context = CompanyContextStore::get();
+
+        if ($context === null) {
+            http_response_code(403);
+
+            echo 'No existe un contexto empresarial válido.';
+
+            return;
+        }
+
+        require dirname(__DIR__, 3)
+            . '/Views/users/create.php';
+    }
+
+    public function store(): void
+    {
+        $context = CompanyContextStore::get();
+
+        if ($context === null) {
+            http_response_code(403);
+
+            echo 'No existe un contexto empresarial válido.';
+
+            return;
+        }
+
+        $name = trim(
+            (string) ($_POST['name'] ?? '')
+        );
+
+        $lastName = trim(
+            (string) ($_POST['last_name'] ?? '')
+        );
+
+        $displayName = trim(
+            (string) ($_POST['display_name'] ?? '')
+        );
+
+        $email = trim(
+            (string) ($_POST['email'] ?? '')
+        );
+
+        $phone = trim(
+            (string) ($_POST['phone'] ?? '')
+        );
+
+        $password = (string) (
+            $_POST['password'] ?? ''
+        );
+
+        /*
+        * =====================================================
+        * VALIDACIÓN
+        * =====================================================
+        */
+
+        $errors = [];
+
+        if ($name === '') {
+            $errors[] = 'El nombre es obligatorio.';
+        }
+
+        if (mb_strlen($name) > 100) {
+            $errors[] = 'El nombre es demasiado largo.';
+        }
+
+        if (mb_strlen($lastName) > 150) {
+            $errors[] = 'Los apellidos son demasiado largos.';
+        }
+
+        if (mb_strlen($displayName) > 150) {
+            $errors[] = 'El nombre para mostrar es demasiado largo.';
+        }
+
+        if (
+            $email === ''
+            || filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            ) === false
+        ) {
+            $errors[] = 'El correo electrónico no es válido.';
+        }
+
+        if (mb_strlen($email) > 180) {
+            $errors[] = 'El correo electrónico es demasiado largo.';
+        }
+
+        if (mb_strlen($phone) > 50) {
+            $errors[] = 'El teléfono es demasiado largo.';
+        }
+
+        if (strlen($password) < 8) {
+            $errors[] =
+                'La contraseña debe tener al menos 8 caracteres.';
+        }
+
+        if ($errors !== []) {
+            http_response_code(422);
+
+            foreach ($errors as $error) {
+                echo htmlspecialchars(
+                    $error,
+                    ENT_QUOTES,
+                    'UTF-8'
+                );
+
+                echo '<br>';
+            }
+
+            return;
+        }
+
+        /*
+        * Todavía no guardamos.
+        *
+        * Este mensaje es temporal mientras verificamos
+        * autorización, CSRF y validación.
+        */
+
+        /*
+        * =====================================================
+        * ALTA TRANSACCIONAL
+        * =====================================================
+        */
+
+        $email = mb_strtolower($email);
+
+        $pdo = Database::connection();
+
+        try {
+            $pdo->beginTransaction();
+
+            /*
+            * Buscamos primero la identidad global.
+            */
+            $userStatement = $pdo->prepare("
+                SELECT
+                    id,
+                    status
+                FROM users
+                WHERE email = :email
+                LIMIT 1
+                FOR UPDATE
+            ");
+
+            $userStatement->execute([
+                ':email' => $email,
+            ]);
+
+            $existingUser = $userStatement->fetch();
+
+            /*
+            * =================================================
+            * IDENTIDAD NUEVA
+            * =================================================
+            */
+
+            if (!$existingUser) {
+                $passwordHash = password_hash(
+                    $password,
+                    PASSWORD_DEFAULT
+                );
+
+                if ($passwordHash === false) {
+                    throw new \RuntimeException(
+                        'No fue posible proteger la contraseña.'
+                    );
+                }
+
+                $insertUser = $pdo->prepare("
+                    INSERT INTO users (
+                        name,
+                        last_name,
+                        display_name,
+                        email,
+                        password_hash,
+                        phone,
+                        status
+                    )
+                    VALUES (
+                        :name,
+                        :last_name,
+                        :display_name,
+                        :email,
+                        :password_hash,
+                        :phone,
+                        'active'
+                    )
+                ");
+
+                $insertUser->execute([
+                    ':name' => $name,
+                    ':last_name' =>
+                        $lastName !== ''
+                            ? $lastName
+                            : null,
+                    ':display_name' =>
+                        $displayName !== ''
+                            ? $displayName
+                            : null,
+                    ':email' => $email,
+                    ':password_hash' => $passwordHash,
+                    ':phone' =>
+                        $phone !== ''
+                            ? $phone
+                            : null,
+                ]);
+
+                $userId = (int) $pdo->lastInsertId();
+            } else {
+                /*
+                * La identidad ya existe globalmente.
+                *
+                * No modificamos nombre, contraseña, teléfono
+                * ni ningún otro dato global desde este flujo.
+                */
+                $userId = (int) $existingUser['id'];
+
+                if (
+                    ($existingUser['status'] ?? null)
+                    !== 'active'
+                ) {
+                    $pdo->rollBack();
+
+                    http_response_code(409);
+
+                    echo 'La identidad existe, pero no está activa.';
+
+                    return;
+                }
+            }
+
+            /*
+            * =================================================
+            * MEMBRESÍA EMPRESARIAL
+            * =================================================
+            */
+
+            $membershipStatement = $pdo->prepare("
+                SELECT
+                    id,
+                    status
+                FROM user_companies
+                WHERE user_id = :user_id
+                AND company_id = :company_id
+                LIMIT 1
+                FOR UPDATE
+            ");
+
+            $membershipStatement->execute([
+                ':user_id' => $userId,
+                ':company_id' => $context->companyId(),
+            ]);
+
+            $membership =
+                $membershipStatement->fetch();
+
+            if ($membership) {
+                $pdo->rollBack();
+
+                http_response_code(409);
+
+                if (
+                    ($membership['status'] ?? null)
+                    === 'active'
+                ) {
+                    echo 'El usuario ya pertenece a esta empresa.';
+                } else {
+                    echo 'El usuario tiene una membresía inactiva en esta empresa.';
+                }
+
+                return;
+            }
+
+            $insertMembership = $pdo->prepare("
+                INSERT INTO user_companies (
+                    user_id,
+                    company_id,
+                    status
+                )
+                VALUES (
+                    :user_id,
+                    :company_id,
+                    'active'
+                )
+            ");
+
+            $insertMembership->execute([
+                ':user_id' => $userId,
+                ':company_id' => $context->companyId(),
+            ]);
+
+            $pdo->commit();
+
+            header(
+                'Location: '
+                . Url::to('/users/' . $userId)
+            );
+
+            exit;
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
     public function show(
         string $id
     ): void {

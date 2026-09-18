@@ -175,6 +175,26 @@ class Application
         );
 
         $router->get(
+            '/users/create',
+            function (): void {
+                $controller = new UserController();
+
+                $controller->create();
+            },
+            BusinessMiddleware::permission('users.create')
+        );
+
+        $router->post(
+            '/users',
+            function (): void {
+                $controller = new UserController();
+
+                $controller->store();
+            },
+            BusinessMiddleware::permission('users.create')
+        );
+
+        $router->get(
             '/users/{id}',
             function (string $id): void {
                 $controller = new UserController();

@@ -444,25 +444,37 @@ class UserController
         $pdo = Database::connection();
 
         $statement = $pdo->prepare("
-        SELECT
-            u.id,
-            u.email,
-            u.name,
-            u.last_name,
-            u.display_name,
-            u.status
-        FROM users u
+            SELECT
+                u.id,
+                u.email,
+                u.name,
+                u.last_name,
+                u.display_name,
+                u.status AS user_status,
 
-        INNER JOIN user_companies uc
-            ON uc.user_id = u.id
-            AND uc.company_id = :company_id
-            AND uc.status = 'active'
+                uc.id AS membership_id,
+                uc.status AS membership_status,
+                uc.created_at AS membership_created_at,
 
-        WHERE u.id = :user_id
-          AND u.status = 'active'
+                c.id AS company_id,
+                c.name AS company_name
 
-        LIMIT 1
-    ");
+            FROM users u
+
+            INNER JOIN user_companies uc
+                ON uc.user_id = u.id
+                AND uc.company_id = :company_id
+                AND uc.status = 'active'
+
+            INNER JOIN companies c
+                ON c.id = uc.company_id
+                AND c.status = 'active'
+
+            WHERE u.id = :user_id
+            AND u.status = 'active'
+
+            LIMIT 1
+        ");
 
         $statement->execute([
             'company_id' => $context->companyId(),

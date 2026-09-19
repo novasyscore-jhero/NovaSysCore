@@ -258,8 +258,138 @@ try {
     );
 
     /*
+    * =====================================================
+    * 5. INFORMACIÓN DE MEMBRESÍA EMPRESARIAL
+    * =====================================================
+    */
+
+    checkUserController(
+        'Vista distingue el estado global del usuario',
+        str_contains(
+            $result['output'],
+            'Estado global'
+        )
+    );
+
+    checkUserController(
+        'Empresa Beta muestra su propia membresía',
+        str_contains(
+            $result['output'],
+            'Empresa Beta'
+        )
+    );
+
+    checkUserController(
+        'Empresa Beta muestra membresía activa',
+        str_contains(
+            $result['output'],
+            'Estado de membresía'
+        )
+        && str_contains(
+            $result['output'],
+            'Activa'
+        )
+    );
+
+    checkUserController(
+        'Vista muestra fecha de incorporación empresarial',
+        str_contains(
+            $result['output'],
+            'Miembro desde'
+        )
+    );
+
+    /*
+    * =====================================================
+    * 6. MISMA IDENTIDAD EN ALPHA Y BETA
+    * =====================================================
+    *
+    * Hasta este punto el usuario pertenecía exclusivamente
+    * a Beta. Ahora agregamos una membresía Alpha para
+    * comprobar que la vista depende del contexto actual.
+    */
+
+    $statement = $pdo->prepare("
+        INSERT INTO user_companies (
+            user_id,
+            company_id,
+            status
+        )
+        VALUES (
+            :user_id,
+            :company_id,
+            'active'
+        )
+    ");
+
+    $statement->execute([
+        'user_id' => $betaUserId,
+        'company_id' => 1,
+    ]);
+
+    CompanyContextStore::set(
+        $alphaContext
+    );
+
+    $alphaResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Usuario compartido puede verse desde Alpha',
+        $alphaResult['status'] === 200
+    );
+
+    checkUserController(
+        'Contexto Alpha muestra Empresa Alpha',
+        str_contains(
+            $alphaResult['output'],
+            'Empresa Alpha'
+        )
+    );
+
+    checkUserController(
+        'Contexto Alpha no muestra Empresa Beta',
+        !str_contains(
+            $alphaResult['output'],
+            'Empresa Beta'
+        )
+    );
+
+    CompanyContextStore::set(
+        $betaContext
+    );
+
+    $betaResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Usuario compartido puede verse desde Beta',
+        $betaResult['status'] === 200
+    );
+
+    checkUserController(
+        'Contexto Beta muestra Empresa Beta',
+        str_contains(
+            $betaResult['output'],
+            'Empresa Beta'
+        )
+    );
+
+    checkUserController(
+        'Contexto Beta no muestra Empresa Alpha',
+        !str_contains(
+            $betaResult['output'],
+            'Empresa Alpha'
+        )
+    );
+
+    /*
      * =====================================================
-     * 5. CONTEXTO AUSENTE
+     * 7. CONTEXTO AUSENTE
      * =====================================================
      */
 

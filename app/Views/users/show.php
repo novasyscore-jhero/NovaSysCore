@@ -17,13 +17,11 @@ if ($displayName === '') {
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         <?= htmlspecialchars(
@@ -71,13 +69,11 @@ if ($displayName === '') {
                 </p>
             </div>
 
-            <a
-                href="<?= htmlspecialchars(
-                    Url::to('/users'),
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-            >
+            <a href="<?= htmlspecialchars(
+                Url::to('/users'),
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>">
                 Volver a usuarios
             </a>
         </div>
@@ -151,17 +147,109 @@ if ($displayName === '') {
                         color:#6b7280;
                         margin-bottom:6px;
                     ">
-                        Estado
+                        Estado global
                     </div>
 
                     <strong>
-                        <?= $user['status'] === 'active'
-                            ? 'Activo'
+                        <?= $user['user_status'] === 'active'
+                        ? 'Activo'
+                        : htmlspecialchars(
+                            $user['user_status'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div style="
+            background:white;
+            border-radius:12px;
+            padding:30px;
+            margin-top:25px;
+        ">
+
+            <div style="
+                margin-bottom:25px;
+            ">
+                <h2 style="
+                    margin:0;
+                    font-size:20px;
+                ">
+                    Membresía empresarial
+                </h2>
+
+                <p style="
+                    margin:8px 0 0;
+                    color:#6b7280;
+                ">
+                    Relación del usuario con la empresa actual
+                </p>
+            </div>
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(220px, 1fr));
+                gap:25px;
+            ">
+
+                <div>
+                    <div style="
+                        font-size:13px;
+                        color:#6b7280;
+                        margin-bottom:6px;
+                    ">
+                        Empresa
+                    </div>
+
+                    <strong>
+                        <?= htmlspecialchars(
+                            $user['company_name'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                    </strong>
+                </div>
+
+                <div>
+                    <div style="
+                        font-size:13px;
+                        color:#6b7280;
+                        margin-bottom:6px;
+                    ">
+                        Estado de membresía
+                    </div>
+
+                    <strong>
+                        <?= $user['membership_status'] === 'active'
+                            ? 'Activa'
                             : htmlspecialchars(
-                                $user['status'],
+                                $user['membership_status'],
                                 ENT_QUOTES,
                                 'UTF-8'
                             ) ?>
+                    </strong>
+                </div>
+
+                <div>
+                    <div style="
+                        font-size:13px;
+                        color:#6b7280;
+                        margin-bottom:6px;
+                    ">
+                        Miembro desde
+                    </div>
+
+                    <strong>
+                        <?= htmlspecialchars(
+                            $user['membership_created_at'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
                     </strong>
                 </div>
 
@@ -172,4 +260,5 @@ if ($displayName === '') {
     </div>
 
 </body>
+
 </html>

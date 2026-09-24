@@ -165,6 +165,12 @@ if ($displayName === '') {
 
         </div>
 
+                <!--
+        =====================================================
+        MEMBRESÍA EMPRESARIAL
+        =====================================================
+        -->
+
         <div style="
             background:white;
             border-radius:12px;
@@ -254,6 +260,155 @@ if ($displayName === '') {
                 </div>
 
             </div>
+
+        </div>
+
+        <!--
+        =====================================================
+        ROLES EMPRESARIALES
+        =====================================================
+        -->
+
+        <div style="
+            background:white;
+            border-radius:12px;
+            padding:30px;
+            margin-top:25px;
+        ">
+
+            <div style="
+                margin-bottom:25px;
+            ">
+                <h2 style="
+                    margin:0;
+                    font-size:20px;
+                ">
+                    Roles empresariales
+                </h2>
+
+                <p style="
+                    margin:8px 0 0;
+                    color:#6b7280;
+                ">
+                    Roles asignados al usuario dentro de la empresa actual
+                </p>
+            </div>
+
+            <?php if (empty($companyRoles)): ?>
+
+                <div style="
+                    padding:18px;
+                    background:#f9fafb;
+                    border-radius:8px;
+                    color:#6b7280;
+                ">
+                    Este usuario no tiene roles empresariales asignados en
+                    <strong style="color:#111827;">
+                        <?= htmlspecialchars(
+                            $user['company_name'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                    </strong>.
+                </div>
+
+            <?php else: ?>
+
+                <?php foreach ($companyRoles as $role): ?>
+
+                    <div style="
+                        border:1px solid #e5e7eb;
+                        border-radius:10px;
+                        padding:20px;
+                        margin-bottom:15px;
+                    ">
+
+                        <div style="
+                            font-size:18px;
+                            font-weight:700;
+                            margin-bottom:18px;
+                        ">
+                            <?= htmlspecialchars(
+                                $role['name'],
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        </div>
+
+                        <div style="
+                            display:grid;
+                            grid-template-columns:
+                                repeat(auto-fit, minmax(220px, 1fr));
+                            gap:20px;
+                        ">
+
+                            <div>
+                                <div style="
+                                    font-size:13px;
+                                    color:#6b7280;
+                                    margin-bottom:6px;
+                                ">
+                                    Alcance de sucursales
+                                </div>
+
+                                <strong>
+                                    <?=
+                                        $role['branch_scope'] === 'all'
+                                            ? 'Todas las sucursales'
+                                            : 'Sucursales seleccionadas'
+                                    ?>
+                                </strong>
+                            </div>
+
+                            <div>
+                                <div style="
+                                    font-size:13px;
+                                    color:#6b7280;
+                                    margin-bottom:6px;
+                                ">
+                                    Asignado desde
+                                </div>
+
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        $role['assigned_at'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <?php if (
+                                !empty($role['description'])
+                            ): ?>
+
+                                <div>
+                                    <div style="
+                                        font-size:13px;
+                                        color:#6b7280;
+                                        margin-bottom:6px;
+                                    ">
+                                        Descripción
+                                    </div>
+
+                                    <span>
+                                        <?= htmlspecialchars(
+                                            $role['description'],
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                </div>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+            <?php endif; ?>
 
         </div>
 

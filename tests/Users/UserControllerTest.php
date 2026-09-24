@@ -388,8 +388,178 @@ try {
     );
 
     /*
+    * =====================================================
+    * 7. AISLAMIENTO DE ROLES EMPRESARIALES
+    * =====================================================
+    */
+
+    $alphaRoleName =
+        'Rol Alpha Temporal '
+        . bin2hex(random_bytes(4));
+
+    $betaRoleName =
+        'Rol Beta Temporal '
+        . bin2hex(random_bytes(4));
+
+    $alphaRoleSlug =
+        'rol-alpha-temporal-'
+        . bin2hex(random_bytes(4));
+
+    $betaRoleSlug =
+        'rol-beta-temporal-'
+        . bin2hex(random_bytes(4));
+
+    $statement = $pdo->prepare("
+        INSERT INTO roles (
+            company_id,
+            name,
+            slug,
+            status
+        )
+        VALUES (
+            :company_id,
+            :name,
+            :slug,
+            'active'
+        )
+    ");
+
+    $statement->execute([
+        'company_id' => 1,
+        'name' => $alphaRoleName,
+        'slug' => $alphaRoleSlug,
+    ]);
+
+    $alphaRoleId =
+        (int) $pdo->lastInsertId();
+
+    $statement->execute([
+        'company_id' => 2,
+        'name' => $betaRoleName,
+        'slug' => $betaRoleSlug,
+    ]);
+
+    $betaRoleId =
+        (int) $pdo->lastInsertId();
+
+    /*
+    * Obtenemos las dos membresías del mismo usuario.
+    */
+    $statement = $pdo->prepare("
+        SELECT
+            id,
+            company_id
+        FROM user_companies
+        WHERE user_id = :user_id
+        AND company_id IN (1, 2)
+        AND status = 'active'
+    ");
+
+    $statement->execute([
+        'user_id' => $betaUserId,
+    ]);
+
+    $membershipIds = [];
+
+    foreach ($statement->fetchAll() as $membership) {
+        $membershipIds[
+            (int) $membership['company_id']
+        ] = (int) $membership['id'];
+    }
+
+    checkUserController(
+        'Usuario temporal tiene membresías Alpha y Beta',
+        isset(
+            $membershipIds[1],
+            $membershipIds[2]
+        )
+    );
+
+    /*
+    * Asignamos un rol diferente en cada empresa.
+    */
+    $statement = $pdo->prepare("
+        INSERT INTO user_company_roles (
+            user_company_id,
+            role_id,
+            branch_scope
+        )
+        VALUES (
+            :user_company_id,
+            :role_id,
+            'all'
+        )
+    ");
+
+    $statement->execute([
+        'user_company_id' => $membershipIds[1],
+        'role_id' => $alphaRoleId,
+    ]);
+
+    $statement->execute([
+        'user_company_id' => $membershipIds[2],
+        'role_id' => $betaRoleId,
+    ]);
+
+    /*
+    * Contexto Alpha.
+    */
+    CompanyContextStore::set(
+        $alphaContext
+    );
+
+    $alphaRoleResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Contexto Alpha muestra su rol empresarial',
+        str_contains(
+            $alphaRoleResult['output'],
+            $alphaRoleName
+        )
+    );
+
+    checkUserController(
+        'Contexto Alpha no filtra rol de Beta',
+        !str_contains(
+            $alphaRoleResult['output'],
+            $betaRoleName
+        )
+    );
+
+    /*
+    * Contexto Beta.
+    */
+    CompanyContextStore::set(
+        $betaContext
+    );
+
+    $betaRoleResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Contexto Beta muestra su rol empresarial',
+        str_contains(
+            $betaRoleResult['output'],
+            $betaRoleName
+        )
+    );
+
+    checkUserController(
+        'Contexto Beta no filtra rol de Alpha',
+        !str_contains(
+            $betaRoleResult['output'],
+            $alphaRoleName
+        )
+    );
+
+    /*
      * =====================================================
-     * 7. CONTEXTO AUSENTE
+     * 8. CONTEXTO AUSENTE
      * =====================================================
      */
 

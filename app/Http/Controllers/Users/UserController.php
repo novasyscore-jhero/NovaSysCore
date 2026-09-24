@@ -490,6 +490,47 @@ class UserController
         }
 
         /*
+        * =====================================================
+        * ROLES EMPRESARIALES
+        * =====================================================
+        *
+        * Los roles se obtienen desde la membresía empresarial
+        * que ya fue validada para el contexto actual.
+        *
+        * No se incluyen roles globales del sistema.
+        */
+
+        $roleStatement = $pdo->prepare("
+            SELECT
+                r.id,
+                r.name,
+                r.slug,
+                r.description,
+                ucr.branch_scope,
+                ucr.created_at AS assigned_at
+
+            FROM user_company_roles ucr
+
+            INNER JOIN roles r
+                ON r.id = ucr.role_id
+                AND r.company_id = :company_id
+                AND r.status = 'active'
+
+            WHERE ucr.user_company_id = :membership_id
+
+            ORDER BY
+                r.name,
+                r.id
+        ");
+
+        $roleStatement->execute([
+            'company_id' => $context->companyId(),
+            'membership_id' => (int) $user['membership_id'],
+        ]);
+
+        $companyRoles = $roleStatement->fetchAll();
+
+        /*
          * La vista la agregaremos en el siguiente paso.
          */
         require dirname(__DIR__, 3)

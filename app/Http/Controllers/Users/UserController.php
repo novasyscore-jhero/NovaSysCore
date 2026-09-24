@@ -502,6 +502,7 @@ class UserController
 
         $roleStatement = $pdo->prepare("
             SELECT
+                ucr.id AS assignment_id,
                 r.id,
                 r.name,
                 r.slug,
@@ -529,6 +530,63 @@ class UserController
         ]);
 
         $companyRoles = $roleStatement->fetchAll();
+
+        /*
+        * =====================================================
+        * SUCURSALES SELECCIONADAS POR ROL
+        * =====================================================
+        *
+        * Se cargan en una sola consulta para evitar una
+        * consulta adicional por cada rol.
+        */
+
+        $branchStatement = $pdo->prepare("
+            SELECT
+                ucr.id AS user_company_role_id,
+                b.id,
+                b.name,
+                b.code
+
+            FROM user_company_roles ucr
+
+            INNER JOIN user_company_branches ucb
+                ON ucb.user_company_role_id = ucr.id
+
+            INNER JOIN branches b
+                ON b.id = ucb.branch_id
+                AND b.company_id = :company_id
+                AND b.status = 'active'
+
+            WHERE ucr.user_company_id = :membership_id
+            AND ucr.branch_scope = 'selected'
+
+            ORDER BY
+                b.name,
+                b.id
+        ");
+
+        $branchStatement->execute([
+            'company_id' => $context->companyId(),
+            'membership_id' => (int) $user['membership_id'],
+        ]);
+
+        $selectedBranchesByRole = [];
+
+        foreach (
+            $branchStatement->fetchAll()
+            as $branch
+        ) {
+            $roleAssignmentId =
+                (int) $branch['user_company_role_id'];
+
+            $selectedBranchesByRole[
+                $roleAssignmentId
+            ][] = [
+                'id' => (int) $branch['id'],
+                'name' => $branch['name'],
+                'code' => $branch['code'],
+            ];
+        }
 
         /*
          * La vista la agregaremos en el siguiente paso.

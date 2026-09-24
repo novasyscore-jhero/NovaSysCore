@@ -558,8 +558,281 @@ try {
     );
 
     /*
+    * =====================================================
+    * 8. ALCANCE DE SUCURSALES POR ROL
+    * =====================================================
+    */
+
+    /*
+    * Los roles anteriores tienen branch_scope = all.
+    * Comprobamos primero que la vista represente
+    * correctamente ese alcance sin necesitar filas
+    * en user_company_branches.
+    */
+
+    CompanyContextStore::set(
+        $alphaContext
+    );
+
+    $alphaAllResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Rol con alcance all muestra todas las sucursales',
+        str_contains(
+            $alphaAllResult['output'],
+            'Todas las sucursales'
+        )
+    );
+
+    /*
+    * Creamos un segundo rol Alpha con alcance selected.
+    */
+
+    $selectedAlphaRoleName =
+        'Rol Alpha Selected '
+        . bin2hex(random_bytes(4));
+
+    $selectedAlphaRoleSlug =
+        'rol-alpha-selected-'
+        . bin2hex(random_bytes(4));
+
+    $statement = $pdo->prepare("
+        INSERT INTO roles (
+            company_id,
+            name,
+            slug,
+            status
+        )
+        VALUES (
+            1,
+            :name,
+            :slug,
+            'active'
+        )
+    ");
+
+    $statement->execute([
+        'name' => $selectedAlphaRoleName,
+        'slug' => $selectedAlphaRoleSlug,
+    ]);
+
+    $selectedAlphaRoleId =
+        (int) $pdo->lastInsertId();
+
+    $statement = $pdo->prepare("
+        INSERT INTO user_company_roles (
+            user_company_id,
+            role_id,
+            branch_scope
+        )
+        VALUES (
+            :user_company_id,
+            :role_id,
+            'selected'
+        )
+    ");
+
+    $statement->execute([
+        'user_company_id' => $membershipIds[1],
+        'role_id' => $selectedAlphaRoleId,
+    ]);
+
+    $selectedAlphaAssignmentId =
+        (int) $pdo->lastInsertId();
+
+    /*
+    * Antes de asignarle una sucursal comprobamos que
+    * selected vacío NO se interprete como acceso total.
+    */
+
+    $selectedEmptyResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Rol selected sin sucursales muestra estado vacío',
+        str_contains(
+            $selectedEmptyResult['output'],
+            'Sin sucursales seleccionadas'
+        )
+    );
+
+    /*
+    * Asignamos exclusivamente Sucursal Centro.
+    */
+
+    $statement = $pdo->prepare("
+        INSERT INTO user_company_branches (
+            user_company_role_id,
+            branch_id
+        )
+        VALUES (
+            :user_company_role_id,
+            :branch_id
+        )
+    ");
+
+    $statement->execute([
+        'user_company_role_id'
+            => $selectedAlphaAssignmentId,
+        'branch_id' => 1,
+    ]);
+
+    $alphaSelectedResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Rol selected Alpha muestra Sucursal Centro',
+        str_contains(
+            $alphaSelectedResult['output'],
+            'Sucursal Centro'
+        )
+    );
+
+    checkUserController(
+        'Rol selected Alpha no muestra Sucursal Norte',
+        !str_contains(
+            $alphaSelectedResult['output'],
+            'Sucursal Norte'
+        )
+    );
+
+    /*
+    * =====================================================
+    * AISLAMIENTO DE SUCURSALES ENTRE EMPRESAS
+    * =====================================================
+    *
+    * Creamos otro rol selected, ahora para Beta,
+    * y le asignamos exclusivamente Sucursal Beta.
+    */
+
+    $selectedBetaRoleName =
+        'Rol Beta Selected '
+        . bin2hex(random_bytes(4));
+
+    $selectedBetaRoleSlug =
+        'rol-beta-selected-'
+        . bin2hex(random_bytes(4));
+
+    $statement = $pdo->prepare("
+        INSERT INTO roles (
+            company_id,
+            name,
+            slug,
+            status
+        )
+        VALUES (
+            2,
+            :name,
+            :slug,
+            'active'
+        )
+    ");
+
+    $statement->execute([
+        'name' => $selectedBetaRoleName,
+        'slug' => $selectedBetaRoleSlug,
+    ]);
+
+    $selectedBetaRoleId =
+        (int) $pdo->lastInsertId();
+
+    $statement = $pdo->prepare("
+        INSERT INTO user_company_roles (
+            user_company_id,
+            role_id,
+            branch_scope
+        )
+        VALUES (
+            :user_company_id,
+            :role_id,
+            'selected'
+        )
+    ");
+
+    $statement->execute([
+        'user_company_id' => $membershipIds[2],
+        'role_id' => $selectedBetaRoleId,
+    ]);
+
+    $selectedBetaAssignmentId =
+        (int) $pdo->lastInsertId();
+
+    $statement = $pdo->prepare("
+        INSERT INTO user_company_branches (
+            user_company_role_id,
+            branch_id
+        )
+        VALUES (
+            :user_company_role_id,
+            3
+        )
+    ");
+
+    $statement->execute([
+        'user_company_role_id'
+            => $selectedBetaAssignmentId,
+    ]);
+
+    /*
+    * Alpha jamás debe mostrar la sucursal Beta.
+    */
+
+    CompanyContextStore::set(
+        $alphaContext
+    );
+
+    $alphaIsolationResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Contexto Alpha no muestra Sucursal Beta',
+        !str_contains(
+            $alphaIsolationResult['output'],
+            'Sucursal Beta'
+        )
+    );
+
+    /*
+    * Beta sí debe mostrar su propia sucursal.
+    */
+
+    CompanyContextStore::set(
+        $betaContext
+    );
+
+    $betaSelectedResult = executeUserShow(
+        $controller,
+        (string) $betaUserId
+    );
+
+    checkUserController(
+        'Contexto Beta muestra Sucursal Beta',
+        str_contains(
+            $betaSelectedResult['output'],
+            'Sucursal Beta'
+        )
+    );
+
+    checkUserController(
+        'Contexto Beta no muestra Sucursal Centro',
+        !str_contains(
+            $betaSelectedResult['output'],
+            'Sucursal Centro'
+        )
+    );
+
+    /*
      * =====================================================
-     * 8. CONTEXTO AUSENTE
+     * 9. CONTEXTO AUSENTE
      * =====================================================
      */
 

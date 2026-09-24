@@ -360,6 +360,79 @@ if ($displayName === '') {
                                 </strong>
                             </div>
 
+                            <?php if (
+                                $role['branch_scope'] === 'selected'
+                            ): ?>
+
+                                <?php
+                                $roleAssignmentId =
+                                    (int) $role['assignment_id'];
+
+                                $selectedBranches =
+                                    $selectedBranchesByRole[
+                                        $roleAssignmentId
+                                    ] ?? [];
+                                ?>
+
+                                <div>
+                                    <div style="
+                                        font-size:13px;
+                                        color:#6b7280;
+                                        margin-bottom:6px;
+                                    ">
+                                        Sucursales autorizadas
+                                    </div>
+
+                                    <?php if (empty($selectedBranches)): ?>
+
+                                        <span style="
+                                            color:#6b7280;
+                                        ">
+                                            Sin sucursales seleccionadas
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        <div style="
+                                            display:flex;
+                                            flex-direction:column;
+                                            gap:6px;
+                                        ">
+
+                                            <?php foreach (
+                                                $selectedBranches
+                                                as $branch
+                                            ): ?>
+
+                                                <strong>
+                                                    <?= htmlspecialchars(
+                                                        $branch['name'],
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+
+                                                    <span style="
+                                                        font-weight:400;
+                                                        color:#6b7280;
+                                                    ">
+                                                        (<?= htmlspecialchars(
+                                                            $branch['code'],
+                                                            ENT_QUOTES,
+                                                            'UTF-8'
+                                                        ) ?>)
+                                                    </span>
+                                                </strong>
+
+                                            <?php endforeach; ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </div>
+
+                            <?php endif; ?>
+
                             <div>
                                 <div style="
                                     font-size:13px;

@@ -204,6 +204,16 @@ class Application
             BusinessMiddleware::permission('users.view')
         );
 
+        $router->post(
+            '/users/{id}/roles',
+            function (string $id): void {
+                $controller = new UserController();
+
+                $controller->assignRole($id);
+            },
+            BusinessMiddleware::permission('roles.assign')
+        );
+
         /*
          * =====================================================
          * DASHBOARD TEMPORAL PROTEGIDO

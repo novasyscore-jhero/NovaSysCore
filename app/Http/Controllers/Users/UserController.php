@@ -9,6 +9,11 @@ use App\Services\Users\CompanyUserService;
 use App\Exceptions\Users\MembershipExistsException;
 use App\Exceptions\Users\MembershipInactiveException;
 use App\Exceptions\Users\UserInactiveException;
+use App\Services\Users\CompanyUserRoleService;
+use App\Exceptions\Users\BranchNotAvailableException;
+use App\Exceptions\Users\InvalidBranchScopeException;
+use App\Exceptions\Users\RoleAlreadyAssignedException;
+use App\Exceptions\Users\RoleNotAvailableException;
 
 class UserController
 {
@@ -490,15 +495,15 @@ class UserController
         }
 
         /*
-        * =====================================================
-        * ROLES EMPRESARIALES
-        * =====================================================
-        *
-        * Los roles se obtienen desde la membresía empresarial
-        * que ya fue validada para el contexto actual.
-        *
-        * No se incluyen roles globales del sistema.
-        */
+         * =====================================================
+         * ROLES EMPRESARIALES
+         * =====================================================
+         *
+         * Los roles se obtienen desde la membresía empresarial
+         * que ya fue validada para el contexto actual.
+         *
+         * No se incluyen roles globales del sistema.
+         */
 
         $roleStatement = $pdo->prepare("
             SELECT
@@ -532,13 +537,13 @@ class UserController
         $companyRoles = $roleStatement->fetchAll();
 
         /*
-        * =====================================================
-        * SUCURSALES SELECCIONADAS POR ROL
-        * =====================================================
-        *
-        * Se cargan en una sola consulta para evitar una
-        * consulta adicional por cada rol.
-        */
+         * =====================================================
+         * SUCURSALES SELECCIONADAS POR ROL
+         * =====================================================
+         *
+         * Se cargan en una sola consulta para evitar una
+         * consulta adicional por cada rol.
+         */
 
         $branchStatement = $pdo->prepare("
             SELECT
@@ -593,6 +598,196 @@ class UserController
          */
         require dirname(__DIR__, 3)
             . '/Views/users/show.php';
+    }
+
+    public function assignRole(
+        string $id
+    ): void {
+        /*
+         * =====================================================
+         * IDENTIFICADOR DEL USUARIO
+         * =====================================================
+         */
+
+        if (
+            !ctype_digit($id)
+            || (int) $id <= 0
+        ) {
+            $this->notFound();
+
+            return;
+        }
+
+        /*
+         * =====================================================
+         * CONTEXTO EMPRESARIAL
+         * =====================================================
+         */
+
+        $context = CompanyContextStore::get();
+
+        if ($context === null) {
+            http_response_code(403);
+
+            echo 'No existe un contexto empresarial válido.';
+
+            return;
+        }
+
+        /*
+         * =====================================================
+         * MEMBRESÍA EMPRESARIAL
+         * =====================================================
+         *
+         * Nunca confiamos en un membership_id recibido desde
+         * el navegador. La membresía se resuelve desde el
+         * usuario solicitado y la empresa del contexto actual.
+         */
+
+        $pdo = Database::connection();
+
+        $statement = $pdo->prepare("
+        SELECT uc.id
+        FROM users u
+
+        INNER JOIN user_companies uc
+            ON uc.user_id = u.id
+            AND uc.company_id = :company_id
+            AND uc.status = 'active'
+
+        WHERE u.id = :user_id
+          AND u.status = 'active'
+
+        LIMIT 1
+    ");
+
+        $statement->execute([
+            'company_id' => $context->companyId(),
+            'user_id' => (int) $id,
+        ]);
+
+        $membershipId = $statement->fetchColumn();
+
+        if ($membershipId === false) {
+            $this->notFound();
+
+            return;
+        }
+
+        /*
+         * =====================================================
+         * DATOS DE LA ASIGNACIÓN
+         * =====================================================
+         */
+
+        $roleId = filter_var(
+            $_POST['role_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            [
+                'options' => [
+                    'min_range' => 1,
+                ],
+            ]
+        );
+
+        $branchScope = trim(
+            (string) ($_POST['branch_scope'] ?? '')
+        );
+
+        $branchIds = $_POST['branch_ids'] ?? [];
+
+        /*
+         * La estructura HTTP debe ser válida antes de llegar
+         * al servicio de dominio.
+         */
+
+        if (
+            $roleId === false
+            || $roleId === null
+        ) {
+            http_response_code(422);
+
+            echo 'El rol seleccionado no es válido.';
+
+            return;
+        }
+
+        if (!is_array($branchIds)) {
+            http_response_code(422);
+
+            echo 'Las sucursales seleccionadas no son válidas.';
+
+            return;
+        }
+
+        foreach ($branchIds as $branchId) {
+            if (
+                filter_var(
+                    $branchId,
+                    FILTER_VALIDATE_INT,
+                    [
+                        'options' => [
+                            'min_range' => 1,
+                        ],
+                    ]
+                ) === false
+            ) {
+                http_response_code(422);
+
+                echo 'Las sucursales seleccionadas no son válidas.';
+
+                return;
+            }
+        }
+
+        /*
+         * =====================================================
+         * ASIGNACIÓN EMPRESARIAL
+         * =====================================================
+         */
+
+        $service = new CompanyUserRoleService();
+
+        try {
+            $service->assign(
+                (int) $membershipId,
+                $context->companyId(),
+                (int) $roleId,
+                $branchScope,
+                $branchIds
+            );
+
+            header(
+                'Location: '
+                . Url::to('/users/' . (int) $id)
+            );
+
+            return;
+        } catch (InvalidBranchScopeException $exception) {
+            http_response_code(422);
+
+            echo 'El alcance de sucursales no es válido.';
+
+            return;
+        } catch (RoleAlreadyAssignedException $exception) {
+            http_response_code(409);
+
+            echo 'El usuario ya tiene asignado este rol.';
+
+            return;
+        } catch (RoleNotAvailableException $exception) {
+            http_response_code(422);
+
+            echo 'El rol seleccionado no está disponible.';
+
+            return;
+        } catch (BranchNotAvailableException $exception) {
+            http_response_code(422);
+
+            echo 'Una o más sucursales seleccionadas no están disponibles.';
+
+            return;
+        }
     }
 
     private function notFound(): void
